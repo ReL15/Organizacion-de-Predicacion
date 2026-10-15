@@ -27,6 +27,7 @@ import {
   Eye,
   FileText,
   MapPin,
+  X,
 } from 'lucide-react';
 
 interface TerritoriesViewProps {
@@ -237,7 +238,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
             places={places}
             publicPlaces={publicPlaces}
             selectedTerritoryId={selectedTerritoryId}
-            onSelectTerritory={(id) => setSelectedTerritoryId(id)}
+            onSelectTerritory={(id) => setSelectedTerritoryId((prev) => (prev === id ? undefined : id))}
             city={congregation.city}
           />
 
@@ -299,6 +300,15 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                         Editar
                       </Button>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedTerritoryId(undefined)}
+                      className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ml-1"
+                      title="Cerrar selección de territorio"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );

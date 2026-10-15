@@ -120,7 +120,7 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
       onClose={onClose}
       title={initialData ? `Editar Territorio #${initialData.number}` : 'Nuevo Territorio'}
       subtitle="Datos generales y trazado perimetral en el mapa"
-      maxWidth="2xl"
+      maxWidth="5xl"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {errorMessage && (
@@ -129,143 +129,158 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Número de Territorio <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={number}
-              onChange={(e) => setNumber(e.target.value)}
-              placeholder="Ej: 05"
-              required
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono"
-            />
-          </div>
+        {/* Contenedor responsivo: En PC (lg:) 2 columnas lado a lado. En móvil/tablet: 1 columna vertical */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
+          {/* Columna Izquierda: Formulario de datos */}
+          <div className="lg:col-span-5 space-y-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Número de Territorio <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={number}
+                  onChange={(e) => setNumber(e.target.value)}
+                  placeholder="Ej: 05"
+                  required
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 font-mono"
+                />
+              </div>
 
-          <div className="sm:col-span-2">
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Nombre o Sector (Opcional)
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Residencial Utila Sur"
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Estado del Territorio <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value as TerritoryStatus)}
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
-            >
-              <option value="DISPONIBLE">DISPONIBLE (Listo para asignar)</option>
-              <option value="ASIGNADO">ASIGNADO</option>
-              <option value="EN_PROCESO">EN_PROCESO (En trabajo)</option>
-              <option value="COMPLETADO">COMPLETADO (Ciclo finalizado)</option>
-              <option value="INACTIVO">INACTIVO (Baja temporal)</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Asignado actualmente a
-            </label>
-            <select
-              value={assignedToId}
-              onChange={(e) => {
-                setAssignedToId(e.target.value);
-                if (e.target.value && status === 'DISPONIBLE') {
-                  setStatus('ASIGNADO');
-                }
-              }}
-              className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
-            >
-              <option value="">(Sin asignar)</option>
-              {publishers
-                .filter((p) => p.active)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.fullName} ({p.role.replace(/_/g, ' ')})
-                  </option>
-                ))}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            Descripción y límites verbales
-          </label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={2}
-            placeholder="Ej: Desde 2.ª Calle Poniente hasta el límite con la quebrada..."
-            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-          />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
-            Observaciones o notas especiales
-          </label>
-          <input
-            type="text"
-            value={observations}
-            onChange={(e) => setObservations(e.target.value)}
-            placeholder="Ej: Pedir permiso en garita con identificación oficial."
-            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
-          />
-        </div>
-
-        {/* Editor de Polígono Geográfico */}
-        <div className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-semibold text-slate-900 block">
-                Polígono Geográfico del Territorio
-              </span>
-              <span className="text-[11px] text-slate-500">
-                {polygon.length >= 3
-                  ? `${polygon.length} vértices trazados correctamente`
-                  : 'Se necesitan al menos 3 puntos para cerrar el polígono.'}
-              </span>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Nombre o Sector (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ej: Residencial Utila Sur"
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+                />
+              </div>
             </div>
-            <Button
-              type="button"
-              variant={isDrawingPolygon ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => setIsDrawingPolygon(!isDrawingPolygon)}
-            >
-              {isDrawingPolygon ? 'Finalizar Edición' : 'Editar Límites en Mapa'}
-            </Button>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Estado del Territorio <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as TerritoryStatus)}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+                >
+                  <option value="DISPONIBLE">DISPONIBLE (Listo para asignar)</option>
+                  <option value="ASIGNADO">ASIGNADO</option>
+                  <option value="EN_PROCESO">EN_PROCESO (En trabajo)</option>
+                  <option value="COMPLETADO">COMPLETADO (Ciclo finalizado)</option>
+                  <option value="INACTIVO">INACTIVO (Baja temporal)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">
+                  Asignado actualmente a
+                </label>
+                <select
+                  value={assignedToId}
+                  onChange={(e) => {
+                    setAssignedToId(e.target.value);
+                    if (e.target.value && status === 'DISPONIBLE') {
+                      setStatus('ASIGNADO');
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+                >
+                  <option value="">(Sin asignar)</option>
+                  {publishers
+                    .filter((p) => p.active)
+                    .map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.fullName} ({p.role.replace(/_/g, ' ')})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Descripción y límites verbales
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                placeholder="Ej: Desde 2.ª Calle Poniente hasta el límite con la quebrada..."
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Observaciones o notas especiales
+              </label>
+              <input
+                type="text"
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                placeholder="Ej: Pedir permiso en garita con identificación oficial."
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+
+            {/* Acciones Guardar / Cancelar en PC */}
+            <div className="hidden lg:flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <Button variant="outline" size="sm" type="button" onClick={onClose} disabled={isSubmitting}>
+                Cancelar
+              </Button>
+              <Button size="sm" type="submit" isLoading={isSubmitting}>
+                {initialData ? 'Actualizar Territorio' : 'Guardar Territorio'}
+              </Button>
+            </div>
           </div>
 
-          <div className="rounded-xl overflow-hidden border border-slate-200">
+          {/* Columna Derecha: Mapa y Trazado de Límites */}
+          <div className="lg:col-span-7 flex flex-col space-y-2 pt-3 lg:pt-0 border-t lg:border-t-0 lg:border-l lg:border-slate-200 lg:pl-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-slate-900 block">
+                  Polígono Geográfico del Territorio
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  {polygon.length >= 3
+                    ? `${polygon.length} vértices trazados correctamente`
+                    : 'Se necesitan al menos 3 puntos para cerrar el polígono.'}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant={isDrawingPolygon ? 'primary' : 'outline'}
+                size="sm"
+                onClick={() => setIsDrawingPolygon(!isDrawingPolygon)}
+              >
+                {isDrawingPolygon ? 'Finalizar Edición' : 'Editar Límites en Mapa'}
+              </Button>
+            </div>
+
             <TerritoryMap
-              territories={initialData ? [initialData] : []}
+              territories={allTerritories}
               selectedTerritoryId={initialData?.id}
               isEditingPolygon={isDrawingPolygon}
               editingPolygonPoints={polygon}
               onPolygonChange={setPolygon}
               city={city}
-              heightClassName="h-[360px]"
+              heightClassName="h-[340px] lg:h-[460px]"
               autoFitBounds={true}
             />
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+        {/* Acciones Guardar / Cancelar en Móvil y Tablet */}
+        <div className="flex lg:hidden items-center justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="outline" size="sm" type="button" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
