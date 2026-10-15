@@ -16,6 +16,7 @@ interface TerritoryModalProps {
   initialData?: Territory | null;
   publishers: UserProfile[];
   allTerritories: Territory[];
+  city?: string;
 }
 
 export const TerritoryModal: React.FC<TerritoryModalProps> = ({
@@ -25,6 +26,7 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
   initialData,
   publishers,
   allTerritories,
+  city,
 }) => {
   const [number, setNumber] = useState('');
   const [name, setName] = useState('');
@@ -252,6 +254,7 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
               isEditingPolygon={isDrawingPolygon}
               editingPolygonPoints={polygon}
               onPolygonChange={setPolygon}
+              city={city}
             />
           </div>
         </div>

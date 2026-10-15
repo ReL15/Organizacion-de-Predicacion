@@ -9,6 +9,7 @@ interface PlaceModalProps {
   onClose: () => void;
   onSave: (place: PreachingPlace) => Promise<void>;
   initialData?: PreachingPlace | null;
+  city?: string;
 }
 
 export const PlaceModal: React.FC<PlaceModalProps> = ({
@@ -16,12 +17,13 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
   onClose,
   onSave,
   initialData,
+  city,
 }) => {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [coordinates, setCoordinates] = useState<GeoPoint>({
-    latitude: 13.6738,
-    longitude: -89.2842,
+    latitude: 0,
+    longitude: 0,
   });
   const [description, setDescription] = useState('');
   const [active, setActive] = useState(true);
@@ -42,8 +44,8 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
       setName('');
       setAddress('');
       setCoordinates({
-        latitude: 13.6738,
-        longitude: -89.2842,
+        latitude: 0,
+        longitude: 0,
       });
       setDescription('');
       setActive(true);
@@ -131,11 +133,12 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
           />
         </div>
 
-        {/* Selector de coordenadas en Leaflet */}
+        {/* Selector GPS sobre OpenStreetMap */}
         <CoordinatePickerMap
           value={coordinates}
           onChange={setCoordinates}
           label="Ubicación geográfica en el mapa"
+          city={city}
         />
 
         <div>

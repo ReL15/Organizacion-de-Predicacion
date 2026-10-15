@@ -6,7 +6,7 @@ import { Congregation } from '../../types';
 interface NewCongregationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (cong: { name: string; circuit?: string; timezone: string }) => Promise<void>;
+  onCreate: (cong: { name: string; circuit?: string; city?: string; timezone: string }) => Promise<void>;
 }
 
 export const NewCongregationModal: React.FC<NewCongregationModalProps> = ({
@@ -16,6 +16,7 @@ export const NewCongregationModal: React.FC<NewCongregationModalProps> = ({
 }) => {
   const [name, setName] = useState('');
   const [circuit, setCircuit] = useState('SV-04');
+  const [city, setCity] = useState('');
   const [timezone, setTimezone] = useState('America/El_Salvador');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,6 +35,7 @@ export const NewCongregationModal: React.FC<NewCongregationModalProps> = ({
       await onCreate({
         name: name.trim(),
         circuit: circuit.trim() || undefined,
+        city: city.trim() || undefined,
         timezone,
       });
       onClose();
@@ -69,6 +71,19 @@ export const NewCongregationModal: React.FC<NewCongregationModalProps> = ({
             onChange={(e) => setName(e.target.value)}
             placeholder="Ej: Congregación Santa Elena"
             required
+            className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">
+            Ciudad (para centrar los mapas)
+          </label>
+          <input
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Ej: Santa Tecla, El Salvador"
             className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
           />
         </div>

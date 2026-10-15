@@ -13,6 +13,8 @@ export const congregations = pgTable('congregations', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   circuit: text('circuit'),
+  city: text('city'),
+  logoUrl: text('logo_url'),
   timezone: text('timezone').notNull().default('America/El_Salvador'),
   createdAt: timestamp('created_at').defaultNow(),
   createdBy: text('created_by'),

@@ -5,6 +5,7 @@ import {
   TerritoryStatus,
   UserProfile,
   PreachingPlace,
+  PublicPreachingPlace,
 } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { canManagePreachingOperations } from '../../services/securityRules';
@@ -30,6 +31,7 @@ interface TerritoriesViewProps {
   congregation: Congregation;
   territories: Territory[];
   places: PreachingPlace[];
+  publicPlaces?: PublicPreachingPlace[];
   publishers: UserProfile[];
   onSaveTerritory: (territory: Territory) => Promise<void>;
 }
@@ -38,6 +40,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
   congregation,
   territories,
   places,
+  publicPlaces = [],
   publishers,
   onSaveTerritory,
 }) => {
@@ -185,8 +188,10 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
           <TerritoryMap
             territories={filteredTerritories}
             places={places}
+            publicPlaces={publicPlaces}
             selectedTerritoryId={selectedTerritoryId}
             onSelectTerritory={(id) => setSelectedTerritoryId(id)}
+            city={congregation.city}
           />
 
           {/* Ficha rápida si hay territorio seleccionado */}
@@ -334,6 +339,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
           initialData={editingItem}
           publishers={publishers}
           allTerritories={territories}
+          city={congregation.city}
         />
       )}
     </div>

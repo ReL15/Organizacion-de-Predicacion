@@ -11,6 +11,7 @@ import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { PublicAssignmentModal } from './PublicAssignmentModal';
+import { PublicPlaceModal } from './PublicPlaceModal';
 import { pdfGenerator } from '../../services/pdfGenerator';
 import {
   Share2,
@@ -32,6 +33,7 @@ interface PublicPreachingViewProps {
   onSaveAssignment: (assignment: PublicPreachingAssignment) => Promise<void>;
   onDeleteAssignment: (id: string) => Promise<void>;
   onSavePlace: (place: PublicPreachingPlace) => Promise<void>;
+  city?: string;
 }
 
 export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
@@ -42,6 +44,7 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
   onSaveAssignment,
   onDeleteAssignment,
   onSavePlace,
+  city,
 }) => {
   const { currentUser } = useAuth();
   const canEdit = canManagePreachingOperations(currentUser?.role);
@@ -52,6 +55,8 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
   const [editingItem, setEditingItem] = useState<PublicPreachingAssignment | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [placeModalOpen, setPlaceModalOpen] = useState(false);
+  const [editingPlace, setEditingPlace] = useState<PublicPreachingPlace | null>(null);
 
   const filteredAssignments = assignments
     .filter(
@@ -69,6 +74,11 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
   const handleOpenEdit = (item: PublicPreachingAssignment) => {
     setEditingItem(item);
     setModalOpen(true);
+  };
+
+  const handleOpenPlace = (place: PublicPreachingPlace | null = null) => {
+    setEditingPlace(place);
+    setPlaceModalOpen(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -153,6 +163,12 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
               className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
             />
           </div>
+        )}
+        {activeTab === 'puntos' && canEdit && (
+          <Button size="sm" onClick={() => handleOpenPlace()}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Agregar Punto de Exhibidores
+          </Button>
         )}
       </div>
 
@@ -249,6 +265,15 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
 
       {/* Vista de Puntos Fijos */}
       {activeTab === 'puntos' && (
+        places.length === 0 ? (
+          <EmptyState
+            icon={<MapPin className="w-6 h-6" />}
+            title="Aún no hay puntos fijos de exhibidores"
+            description="Agrega un punto con su dirección y coordenadas GPS para utilizarlo en los turnos de predicación pública."
+            actionText={canEdit ? 'Agregar Punto de Exhibidores' : undefined}
+            onAction={canEdit ? () => handleOpenPlace() : undefined}
+          />
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {places.map((place) => (
             <div
@@ -269,6 +294,14 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
                   <div>Día habitual: {place.day}</div>
                   <div>Hora: {place.time} ({place.duration} min)</div>
                 </div>
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=17/${place.latitude}/${place.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center mt-2 text-[11px] text-sky-700 hover:underline"
+                >
+                  Ver ubicación GPS en OpenStreetMap
+                </a>
 
                 {place.description && (
                   <p className="text-xs text-slate-500 italic mt-2">
@@ -276,9 +309,20 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
                   </p>
                 )}
               </div>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenPlace(place)}
+                  className="mt-3 self-end p-1.5 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100"
+                  title="Editar punto de exhibidores"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
+        )
       )}
 
       {modalOpen && (
@@ -290,6 +334,16 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
           places={places}
           publishers={publishers}
           existingAssignments={assignments}
+        />
+      )}
+
+      {placeModalOpen && (
+        <PublicPlaceModal
+          isOpen={placeModalOpen}
+          onClose={() => setPlaceModalOpen(false)}
+          onSave={onSavePlace}
+          initialData={editingPlace}
+          city={city}
         />
       )}
 

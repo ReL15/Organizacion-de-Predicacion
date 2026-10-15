@@ -240,6 +240,7 @@ function AppContent() {
               congregation={data.congregation}
               territories={data.territories}
               places={data.preachingPlaces}
+              publicPlaces={data.publicPlaces}
               publishers={data.users}
               onSaveTerritory={async (territory) => {
                 await apiService.saveTerritory(territory, currentUser);
@@ -252,6 +253,7 @@ function AppContent() {
           {currentTab === 'lugares' && (
             <PlacesView
               places={data.preachingPlaces}
+              city={data.congregation.city}
               onSavePlace={async (place) => {
                 await apiService.savePreachingPlace(place, currentUser);
                 await loadData();
@@ -281,6 +283,7 @@ function AppContent() {
                 await loadData();
                 showToast('Punto de predicación pública guardado.');
               }}
+              city={data.congregation.city}
             />
           )}
 
@@ -291,6 +294,11 @@ function AppContent() {
                 await apiService.saveUserProfile(user, currentUser);
                 await loadData();
                 showToast(`Perfil de ${user.fullName} guardado.`);
+              }}
+              onDeletePublisher={async (user) => {
+                await apiService.deleteUserProfile(user.id);
+                await loadData();
+                showToast(`Publicador ${user.fullName} eliminado.`);
               }}
             />
           )}

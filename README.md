@@ -7,8 +7,8 @@ Aplicación web integral, accesible y adaptable a móviles, diseñada para plani
 ## 1. Arquitectura y Tecnologías
 
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS 4.
-- **Identidad y Backend**: Appwrite Authentication (JWT) y Appwrite Functions como única vía segura de acceso a datos del navegador (sin exponer credenciales privilegiadas en el cliente).
-- **Cartografía**: Leaflet y OpenStreetMap (con atribución visible obligatoria) para trazado de polígonos de territorios y puntos de salida.
+- **Identidad y Backend**: Firebase Authentication para inicio de sesión y un servidor Express/TypeScript que accede a PostgreSQL (Neon). Las credenciales de la base de datos sólo se configuran en el servidor.
+- **Cartografía**: OpenStreetMap y Leaflet para trazar territorios y administrar ubicaciones GPS de lugares de salida y exhibidores, sin clave API de pago.
 - **Reportes e Impresión**: jsPDF para generar programas y reportes oficiales en formato PDF listos para imprimir.
 - **Iconografía**: `lucide-react`.
 
@@ -47,21 +47,19 @@ Aplicación web integral, accesible y adaptable a móviles, diseñada para plani
 
 ## 4. Configuración del Entorno
 
-### Variables para el Cliente Web (`.env`):
+### Variables del servidor
+
+Configura `DATABASE_URL` en `.env` para desarrollo local o como variable de entorno del servidor en producción. Usa `.env.example` como referencia y no subas `.env` al repositorio.
+
 ```bash
-VITE_APPWRITE_ENDPOINT="https://cloud.appwrite.io/v1"
-VITE_APPWRITE_PROJECT_ID="tu_project_id_aqui"
-VITE_APPWRITE_FUNCTION_ID="tu_function_id_aqui"
+DATABASE_URL="postgresql://usuario:contraseña@host/base?sslmode=require"
 ```
 
-### Variables en la Appwrite Function (Servidor):
-```bash
-APPWRITE_FUNCTION_API_KEY="standard_appwrite_api_key_secret"
-APPWRITE_DATABASE_ID="congregacion_db"
-APPWRITE_RECORDS_TABLE_ID="congregation_records"
-APPWRITE_BOOTSTRAP_ADMIN_EMAIL="coordinador@congregacion.org"
-APPWRITE_RECOVERY_URL="https://tu-dominio.com/recuperar-clave"
-```
+La configuración pública del proyecto Firebase se encuentra en `firebase-applet-config.json`. En Firebase Console, habilita **Authentication → Sign-in method → Google** y autoriza el dominio donde se sirve la aplicación. Los coordinadores y el usuario maestro pueden cambiar la contraseña de su propia cuenta desde **Configuración → Seguridad de la cuenta** (se solicita la contraseña actual); si no la recuerdan, pueden pedir un enlace de restablecimiento de Firebase desde esa sección o desde la pantalla de inicio de sesión.
+
+Los mapas usan OpenStreetMap y la búsqueda de ciudades usa Nominatim. No requieren API key ni una cuenta de facturación. La geocodificación está limitada a una solicitud por segundo y se almacena en caché durante la sesión del navegador; el servicio público es de mejor esfuerzo y no debe usarse para cargas masivas o comerciales de alto volumen. Indica la ciudad en **Configuración** para centrar inicialmente los mapas. Los puntos de exhibidores se registran en **Predicación Pública → Puntos Fijos → Agregar Punto de Exhibidores**. Allí y en **Lugares de Salida** se puede ubicar el marcador o ingresar coordenadas GPS manualmente. En Configuración también se puede subir un logo PNG/JPEG (máximo 1 MB), que aparecerá en los PDF de programas y reportes.
+
+Para borrar también la cuenta Firebase asociada a un publicador, ejecuta el servidor con una cuenta de servicio de Firebase Admin (por `GOOGLE_APPLICATION_CREDENTIALS` o Application Default Credentials) que tenga permiso para administrar usuarios. Las credenciales de servicio no deben incluirse en el repositorio.
 
 ---
 

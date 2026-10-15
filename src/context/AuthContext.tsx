@@ -13,6 +13,10 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  updatePassword,
 } from '../lib/firebase';
 import {
   apiService,
@@ -36,6 +40,7 @@ interface AuthContextType {
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   refreshUserProfile: () => Promise<void>;
@@ -80,35 +85,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAvailableCongregations(congs);
         } catch (err: any) {
           console.error('Error sincronizando perfil de usuario:', err);
+          setCurrentUser(null);
+          setIsBootstrapAdmin(false);
+          setHasCongregation(false);
           setError(err.message || 'Error al sincronizar con la base de datos.');
         } finally {
           setIsLoading(false);
         }
       } else {
-        // Verificar si hay perfil por defecto / admin en PostgreSQL
-        try {
-          const { profile } = await apiService.getMyProfile();
-          if (profile) {
-            setCurrentUser(profile);
-            setIsBootstrapAdmin(Boolean(profile.isMasterAdmin));
-            setHasCongregation(Boolean(profile.congregationId));
-
-            const congId = getActiveCongregationId() || profile.congregationId;
-            if (congId) {
-              setActiveCongIdState(congId);
-              setActiveCongregationId(congId);
-            }
-
-            const congs = await apiService.getCongregationsList();
-            setAvailableCongregations(congs);
-          } else {
-            setCurrentUser(null);
-          }
-        } catch {
-          setCurrentUser(null);
-        } finally {
-          setIsLoading(false);
-        }
+        setCurrentUser(null);
+        setIsBootstrapAdmin(false);
+        setHasCongregation(false);
+        setAvailableCongregations([]);
+        setIsLoading(false);
       }
     });
 
@@ -173,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.error('Error al iniciar sesión con Google:', err);
       setError(err.message || 'Error durante la autenticación con Google');
+      throw err;
     } finally {
       setIsLoading(false);
     }
@@ -222,8 +212,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const requestPasswordRecovery = async (_email: string) => {
-    // Modo informativo o envío de correo
+  const requestPasswordRecovery = async (email: string) => {
+    await sendPasswordResetEmail(auth, email.trim());
+  };
+
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    const user = auth.currentUser;
+    if (!user?.email) {
+      throw new Error('Inicia sesión nuevamente para cambiar tu contraseña.');
+    }
+    if (!user.providerData.some((provider) => provider.providerId === 'password')) {
+      throw new Error(
+        'Esta cuenta no tiene una contraseña de correo. Usa el acceso con Google o solicita un enlace de recuperación si ya habías configurado una.'
+      );
+    }
+
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
+    await reauthenticateWithCredential(user, credential);
+    await updatePassword(user, newPassword);
   };
 
   const logout = async () => {
@@ -259,6 +265,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registerWithEmail,
         loginWithGoogle,
         requestPasswordRecovery,
+        changePassword,
         logout,
         clearError,
         refreshUserProfile,

@@ -11,6 +11,13 @@ import {
   Territory,
 } from '../types';
 
+function addCongregationLogo(doc: jsPDF, congregation: Congregation): void {
+  const logo = congregation.logoUrl;
+  if (!logo?.startsWith('data:image/')) return;
+  const format = logo.startsWith('data:image/png') ? 'PNG' : 'JPEG';
+  doc.addImage(logo, format, 14, 5, 18, 18, undefined, 'FAST');
+}
+
 export const pdfGenerator = {
   /**
    * Genera el PDF del Programa Semanal de Predicación
@@ -31,16 +38,21 @@ export const pdfGenerator = {
     // Encabezado
     doc.setFillColor(30, 41, 59); // slate-800
     doc.rect(0, 0, pageWidth, 28, 'F');
+    addCongregationLogo(doc, congregation);
 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('PROGRAMA DE REUNIONES PARA EL SERVICIO DEL CAMPO', margin, 12);
+    doc.text(
+      'PROGRAMA DE REUNIONES PARA EL SERVICIO DEL CAMPO',
+      congregation.logoUrl ? margin + 23 : margin,
+      12
+    );
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
     const subheader = `${congregation.name} ${congregation.circuit ? `· Circuito: ${congregation.circuit}` : ''} · Zona: ${congregation.timezone}`;
-    doc.text(subheader, margin, 20);
+    doc.text(subheader, congregation.logoUrl ? margin + 23 : margin, 20);
 
     // Metadata
     doc.setTextColor(100, 116, 139);
@@ -159,15 +171,24 @@ export const pdfGenerator = {
 
     doc.setFillColor(15, 76, 129); // color distintivo
     doc.rect(0, 0, pageWidth, 28, 'F');
+    addCongregationLogo(doc, congregation);
 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('TURNO DE PREDICACIÓN PÚBLICA ESPECIAL (CARRITOS)', margin, 12);
+    doc.text(
+      'TURNO DE PREDICACIÓN PÚBLICA ESPECIAL (CARRITOS)',
+      congregation.logoUrl ? margin + 23 : margin,
+      12
+    );
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`${congregation.name} · Asignaciones con 2 o 3 participantes`, margin, 20);
+    doc.text(
+      `${congregation.name} · Asignaciones con 2 o 3 participantes`,
+      congregation.logoUrl ? margin + 23 : margin,
+      20
+    );
 
     let y = 38;
     const sorted = [...assignments].sort((a, b) => a.date.localeCompare(b.date));
@@ -235,15 +256,24 @@ export const pdfGenerator = {
 
     doc.setFillColor(30, 41, 59);
     doc.rect(0, 0, pageWidth, 28, 'F');
+    addCongregationLogo(doc, congregation);
 
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
-    doc.text('REGISTRO Y ESTADO DE TERRITORIOS', margin, 12);
+    doc.text(
+      'REGISTRO Y ESTADO DE TERRITORIOS',
+      congregation.logoUrl ? margin + 23 : margin,
+      12
+    );
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`${congregation.name} · Resumen de asignación y avance`, margin, 20);
+    doc.text(
+      `${congregation.name} · Resumen de asignación y avance`,
+      congregation.logoUrl ? margin + 23 : margin,
+      20
+    );
 
     let y = 40;
     doc.setFillColor(241, 245, 249);

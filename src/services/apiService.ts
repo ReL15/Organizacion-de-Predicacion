@@ -59,9 +59,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
     } catch {
       // Ignorar error al extraer token
     }
-    if (auth.currentUser.email) {
-      headers.set('x-user-email', auth.currentUser.email);
-    }
   }
 
   const response = await fetch(path, {
@@ -136,7 +133,7 @@ export const apiService = {
    * Crea una nueva congregación
    */
   async createCongregation(
-    newCong: { name: string; circuit?: string; timezone: string },
+    newCong: { name: string; circuit?: string; city?: string; timezone: string },
     _currentUser: UserProfile
   ): Promise<Congregation> {
     const created = await apiFetch<Congregation>('/api/congregations', {
@@ -352,6 +349,10 @@ export const apiService = {
         body: JSON.stringify({ ...user, congregationId: activeId }),
       });
     }
+  },
+
+  async deleteUserProfile(userId: string): Promise<void> {
+    await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
   },
 
   /**

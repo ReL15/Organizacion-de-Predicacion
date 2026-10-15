@@ -22,6 +22,9 @@ export const createPool = () => {
         connectionTimeoutMillis: 15000,
       };
     } else {
+      if (!process.env.SQL_HOST || !process.env.SQL_USER || !process.env.SQL_DB_NAME) {
+        throw new Error('Configura DATABASE_URL (o SQL_HOST, SQL_USER y SQL_DB_NAME) en el entorno.');
+      }
       const isCloudSqlSocket = process.env.SQL_HOST && process.env.SQL_HOST.startsWith('/cloudsql');
       poolConfig = {
         host: process.env.SQL_HOST,

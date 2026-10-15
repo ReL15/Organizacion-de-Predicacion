@@ -58,6 +58,22 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setMessage(null);
+    setIsLoading(true);
+    try {
+      await loginWithGoogle();
+      if (onClose) onClose();
+    } catch (err: any) {
+      setMessage({
+        type: 'error',
+        text: err.message || 'Error durante la autenticación con Google.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const cardContent = (
     <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
       <div className="mb-6 text-center">
@@ -96,7 +112,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
       <div className="mb-4">
         <button
           type="button"
-          onClick={loginWithGoogle}
+          onClick={handleGoogleLogin}
           disabled={isLoading}
           className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:border-slate-400 transition-all shadow-xs disabled:opacity-50"
         >

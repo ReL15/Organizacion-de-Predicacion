@@ -50,6 +50,8 @@ export async function getCongregationsList(): Promise<Congregation[]> {
       id: r.id,
       name: r.name,
       circuit: r.circuit || undefined,
+      city: r.city || undefined,
+      logoUrl: r.logoUrl || undefined,
       timezone: r.timezone,
       createdAt: toIsoDate(r.createdAt),
       createdBy: r.createdBy || undefined,
@@ -69,6 +71,8 @@ export async function getCongregationById(id: string): Promise<Congregation | nu
       id: r.id,
       name: r.name,
       circuit: r.circuit || undefined,
+      city: r.city || undefined,
+      logoUrl: r.logoUrl || undefined,
       timezone: r.timezone,
       createdAt: toIsoDate(r.createdAt),
       createdBy: r.createdBy || undefined,
@@ -83,6 +87,8 @@ export async function createCongregationRecord(data: {
   id: string;
   name: string;
   circuit?: string;
+  city?: string;
+  logoUrl?: string;
   timezone?: string;
   createdBy?: string;
 }): Promise<Congregation> {
@@ -93,6 +99,8 @@ export async function createCongregationRecord(data: {
         id: data.id,
         name: data.name,
         circuit: data.circuit,
+        city: data.city,
+        logoUrl: data.logoUrl,
         timezone: data.timezone || 'America/El_Salvador',
         createdBy: data.createdBy,
       })
@@ -102,6 +110,8 @@ export async function createCongregationRecord(data: {
       id: inserted.id,
       name: inserted.name,
       circuit: inserted.circuit || undefined,
+      city: inserted.city || undefined,
+      logoUrl: inserted.logoUrl || undefined,
       timezone: inserted.timezone,
       createdAt: toIsoDate(inserted.createdAt),
       createdBy: inserted.createdBy || undefined,
@@ -114,12 +124,14 @@ export async function createCongregationRecord(data: {
 
 export async function updateCongregationRecord(
   id: string,
-  data: Partial<{ name: string; circuit: string; timezone: string }>
+  data: Partial<{ name: string; circuit: string; city: string; logoUrl: string; timezone: string }>
 ): Promise<Congregation> {
   try {
     const payload: Record<string, any> = {};
     if (data.name !== undefined) payload.name = data.name;
     if (data.circuit !== undefined) payload.circuit = data.circuit;
+    if (data.city !== undefined) payload.city = data.city;
+    if (data.logoUrl !== undefined) payload.logoUrl = data.logoUrl;
     if (data.timezone !== undefined) payload.timezone = data.timezone;
 
     const [updated] = await db
@@ -132,6 +144,8 @@ export async function updateCongregationRecord(
       id: updated.id,
       name: updated.name,
       circuit: updated.circuit || undefined,
+      city: updated.city || undefined,
+      logoUrl: updated.logoUrl || undefined,
       timezone: updated.timezone,
       createdAt: toIsoDate(updated.createdAt),
       createdBy: updated.createdBy || undefined,
@@ -194,6 +208,42 @@ export async function getUserByEmail(email: string): Promise<UserProfile | null>
   } catch (error) {
     console.error(`Error fetching user by email ${email}:`, error);
     throw new Error('Error al buscar usuario por correo', { cause: error });
+  }
+}
+
+export async function getUserById(id: string): Promise<UserProfile | null> {
+  try {
+    const rows = await db.select().from(users).where(eq(users.id, id));
+    if (!rows.length) return null;
+    const r = rows[0];
+    return {
+      id: r.id,
+      uid: r.uid,
+      congregationId: r.congregationId || '',
+      firstName: r.firstName,
+      lastName: r.lastName,
+      fullName: r.fullName,
+      email: r.email,
+      phoneNumber: r.phoneNumber || undefined,
+      role: r.role as any,
+      isMasterAdmin: Boolean(r.isMasterAdmin),
+      canLeadPreaching: Boolean(r.canLeadPreaching),
+      canPublicPreaching: Boolean(r.canPublicPreaching),
+      active: Boolean(r.active),
+      createdAt: toIsoDate(r.createdAt),
+    };
+  } catch (error) {
+    console.error(`Error fetching user ${id}:`, error);
+    throw new Error('Error al buscar publicador', { cause: error });
+  }
+}
+
+export async function deleteUserRecord(id: string): Promise<void> {
+  try {
+    await db.delete(users).where(eq(users.id, id));
+  } catch (error) {
+    console.error(`Error deleting user ${id}:`, error);
+    throw new Error('Error al eliminar publicador', { cause: error });
   }
 }
 

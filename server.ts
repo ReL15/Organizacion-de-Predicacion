@@ -10,9 +10,11 @@ import {
   updateCongregationRecord,
   getUserByUid,
   getUserByEmail,
+  getUserById,
   getUsersByCongregation,
   upsertUserRecord,
   updateUserRecord,
+  deleteUserRecord,
   getPlaces,
   createPlace,
   updatePlace,
@@ -44,41 +46,32 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
 
 // Auth helper middleware that extracts user info from Firebase Token or dev header
 async function getUserFromRequest(req: Request) {
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split('Bearer ')[1];
-    try {
-      const decoded = await adminAuth.verifyIdToken(token);
-      let dbUser = await getUserByUid(decoded.uid);
-      if (!dbUser && decoded.email) {
-        dbUser = await getUserByEmail(decoded.email);
-        if (dbUser) {
-          // Link uid to existing user
-          await upsertUserRecord({
-            ...dbUser,
-            uid: decoded.uid,
-          });
-          dbUser.uid = decoded.uid;
-        }
-      }
-      return { firebase: decoded, dbUser };
-    } catch {
-      // Ignore token decode error and continue
+  if (!authHeader?.startsWith('Bearer ')) return null;
+
+  let decoded: Awaited<ReturnType<typeof adminAuth.verifyIdToken>>;
+  try {
+    decoded = await adminAuth.verifyIdToken(authHeader.slice('Bearer '.length));
+  } catch {
+    return null;
+  }
+
+  let dbUser = await getUserByUid(decoded.uid);
+  if (!dbUser && decoded.email) {
+    dbUser = await getUserByEmail(decoded.email);
+    if (dbUser) {
+      await upsertUserRecord({
+        ...dbUser,
+        uid: decoded.uid,
+      });
+      dbUser.uid = decoded.uid;
     }
   }
-
-  // Header or query fallback for user ID
-  const fallbackEmail = req.headers['x-user-email'] as string;
-  if (fallbackEmail) {
-    const dbUser = await getUserByEmail(fallbackEmail);
-    if (dbUser) return { dbUser };
-  }
-
-  return null;
+  return { firebase: decoded, dbUser };
 }
 
 // ====================================================
@@ -102,13 +95,14 @@ app.get('/api/congregations', async (_req: Request, res: Response) => {
 
 app.post('/api/congregations', async (req: Request, res: Response) => {
   try {
-    const { name, circuit, timezone } = req.body;
+    const { name, circuit, city, timezone } = req.body;
     if (!name) return res.status(400).json({ error: 'El nombre es obligatorio' });
     const id = `cong-${Date.now()}`;
     const result = await createCongregationRecord({
       id,
       name,
       circuit,
+      city,
       timezone: timezone || 'America/El_Salvador',
     });
     res.json(result);
@@ -129,7 +123,13 @@ app.put('/api/congregations/:id', async (req: Request, res: Response) => {
 // 2. Perfil y Sincronización de Usuario
 app.post('/api/auth/sync', async (req: Request, res: Response) => {
   try {
-    const { uid, email, displayName } = req.body;
+    const userSession = await getUserFromRequest(req);
+    if (!userSession?.firebase) {
+      return res.status(401).json({ error: 'Inicia sesión para sincronizar tu cuenta.' });
+    }
+    const uid = userSession?.firebase?.uid;
+    const email = userSession?.firebase?.email;
+    const displayName = userSession?.firebase?.name;
     if (!email) return res.status(400).json({ error: 'Correo requerido' });
 
     let user = await getUserByEmail(email);
@@ -176,13 +176,7 @@ app.get('/api/me', async (req: Request, res: Response) => {
       return res.json(userSession.dbUser);
     }
 
-    // Si no hay sesión, retornar el usuario maestro inicial para acceso directo
-    const admin = await getUserByEmail('tch.rivlue15@gmail.com');
-    if (admin) {
-      return res.json(admin);
-    }
-
-    res.status(404).json({ error: 'Usuario no autenticado' });
+    res.status(401).json({ error: 'Usuario no autenticado' });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error al obtener sesión' });
   }
@@ -223,6 +217,41 @@ app.put('/api/users/:id', async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Error al actualizar publicador' });
+  }
+});
+
+app.delete('/api/users/:id', async (req: Request, res: Response) => {
+  try {
+    const userSession = await getUserFromRequest(req);
+    const requester = userSession?.dbUser;
+    if (!requester || !userSession?.firebase) {
+      return res.status(401).json({ error: 'Debes iniciar sesión para eliminar publicadores.' });
+    }
+    if (requester.role !== 'COORDINADOR' || !requester.active) {
+      return res.status(403).json({ error: 'Solo un coordinador activo puede eliminar publicadores.' });
+    }
+
+    const target = await getUserById(req.params.id);
+    if (!target) return res.status(404).json({ error: 'Publicador no encontrado.' });
+    if (target.id === requester.id || target.isMasterAdmin) {
+      return res.status(400).json({ error: 'No se puede eliminar la cuenta propia ni al usuario maestro.' });
+    }
+    if (!requester.isMasterAdmin && target.congregationId !== requester.congregationId) {
+      return res.status(403).json({ error: 'No puedes eliminar publicadores de otra congregación.' });
+    }
+
+    if (target.uid && target.uid !== target.id) {
+      try {
+        await adminAuth.deleteUser(target.uid);
+      } catch (error: any) {
+        if (error.code !== 'auth/user-not-found') throw error;
+      }
+    }
+    await deleteUserRecord(target.id);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error('Error al eliminar publicador:', error);
+    res.status(500).json({ error: error.message || 'Error al eliminar publicador.' });
   }
 });
 
@@ -558,4 +587,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error('No se pudo iniciar el servidor:', error);
+  process.exitCode = 1;
+});

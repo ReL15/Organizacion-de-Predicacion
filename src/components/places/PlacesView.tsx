@@ -10,9 +10,10 @@ import { MapPin, Plus, Edit2, Search, ExternalLink } from 'lucide-react';
 interface PlacesViewProps {
   places: PreachingPlace[];
   onSavePlace: (place: PreachingPlace) => Promise<void>;
+  city?: string;
 }
 
-export const PlacesView: React.FC<PlacesViewProps> = ({ places, onSavePlace }) => {
+export const PlacesView: React.FC<PlacesViewProps> = ({ places, onSavePlace, city }) => {
   const { currentUser } = useAuth();
   const canEdit = canManagePreachingOperations(currentUser?.role);
 
@@ -165,6 +166,7 @@ export const PlacesView: React.FC<PlacesViewProps> = ({ places, onSavePlace }) =
           onClose={() => setModalOpen(false)}
           onSave={onSavePlace}
           initialData={editingItem}
+          city={city}
         />
       )}
     </div>

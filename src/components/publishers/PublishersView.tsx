@@ -5,25 +5,26 @@ import { canManageUsers } from '../../services/securityRules';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
 import { PublisherModal } from './PublisherModal';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import {
   Users,
   Plus,
   Search,
   Edit2,
   KeyRound,
-  Shield,
-  UserCheck,
-  UserX,
+  Trash2,
 } from 'lucide-react';
 
 interface PublishersViewProps {
   publishers: UserProfile[];
   onSavePublisher: (user: UserProfile) => Promise<void>;
+  onDeletePublisher: (user: UserProfile) => Promise<void>;
 }
 
 export const PublishersView: React.FC<PublishersViewProps> = ({
   publishers,
   onSavePublisher,
+  onDeletePublisher,
 }) => {
   const { currentUser, requestPasswordRecovery } = useAuth();
   const isCoordinator = canManageUsers(currentUser?.role);
@@ -32,6 +33,8 @@ export const PublishersView: React.FC<PublishersViewProps> = ({
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<UserProfile | null>(null);
+  const [deletingItem, setDeletingItem] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filteredPublishers = publishers.filter((p) => {
     const matchesSearch =
@@ -69,6 +72,19 @@ export const PublishersView: React.FC<PublishersViewProps> = ({
       await requestPasswordRecovery(user.email);
     } catch (e: any) {
       alert(`Error enviando recuperación: ${e.message}`);
+    }
+  };
+
+  const handleDeletePublisher = async () => {
+    if (!deletingItem) return;
+    setIsDeleting(true);
+    try {
+      await onDeletePublisher(deletingItem);
+      setDeletingItem(null);
+    } catch (e: any) {
+      alert(`Error eliminando publicador: ${e.message}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -211,6 +227,15 @@ export const PublishersView: React.FC<PublishersViewProps> = ({
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
+                        {user.id !== currentUser?.id && !user.isMasterAdmin && (
+                          <button
+                            onClick={() => setDeletingItem(user)}
+                            className="p-1.5 text-rose-500 hover:text-rose-700 rounded hover:bg-rose-50"
+                            title="Eliminar publicador"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   )}
@@ -230,6 +255,16 @@ export const PublishersView: React.FC<PublishersViewProps> = ({
           currentUserId={currentUser?.id}
         />
       )}
+      <ConfirmDialog
+        isOpen={Boolean(deletingItem)}
+        onClose={() => setDeletingItem(null)}
+        onConfirm={handleDeletePublisher}
+        title="Eliminar publicador"
+        message={`¿Seguro que deseas eliminar a ${deletingItem?.fullName}? También se eliminará su cuenta de acceso y no podrá iniciar sesión.`}
+        confirmText="Eliminar"
+        isDangerous
+        isLoading={isDeleting}
+      />
     </div>
   );
 };

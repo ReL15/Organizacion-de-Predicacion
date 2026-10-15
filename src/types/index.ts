@@ -24,6 +24,8 @@ export interface Congregation {
   id: string;
   name: string;
   circuit?: string;
+  city?: string;
+  logoUrl?: string;
   timezone: string; // ej: 'America/El_Salvador'
   createdAt: string;
   createdBy?: string;

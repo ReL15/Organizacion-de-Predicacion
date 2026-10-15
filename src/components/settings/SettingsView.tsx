@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Congregation, AuditLog } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { canManageCongregation } from '../../services/securityRules';
@@ -11,6 +11,7 @@ import {
   Clock,
   History,
   CheckCircle,
+  Lock,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -24,15 +25,33 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   auditLogs,
   onUpdateSettings,
 }) => {
-  const { currentUser } = useAuth();
-  const isCoordinator = canManageCongregation(currentUser?.role);
+  const { currentUser, changePassword, requestPasswordRecovery } = useAuth();
+  const isCoordinator = canManageCongregation(currentUser?.role) || Boolean(currentUser?.isMasterAdmin);
 
   const [name, setName] = useState(congregation.name);
   const [circuit, setCircuit] = useState(congregation.circuit || '');
+  const [city, setCity] = useState(congregation.city || '');
+  const [logoUrl, setLogoUrl] = useState(congregation.logoUrl || '');
   const [timezone, setTimezone] = useState(congregation.timezone || 'America/El_Salvador');
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [logoError, setLogoError] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isSendingRecovery, setIsSendingRecovery] = useState(false);
+
+  useEffect(() => {
+    setName(congregation.name);
+    setCircuit(congregation.circuit || '');
+    setCity(congregation.city || '');
+    setLogoUrl(congregation.logoUrl || '');
+    setTimezone(congregation.timezone || 'America/El_Salvador');
+  }, [congregation]);
 
   if (!isCoordinator) {
     return (
@@ -54,6 +73,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       await onUpdateSettings({
         name: name.trim(),
         circuit: circuit.trim() || undefined,
+        city: city.trim(),
+        logoUrl,
         timezone,
       });
       setSuccessMessage('Ajustes de la congregación guardados correctamente.');
@@ -63,6 +84,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleLogoFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setLogoError('');
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!['image/png', 'image/jpeg'].includes(file.type)) {
+      setLogoError('El logo debe ser una imagen PNG o JPEG.');
+      event.target.value = '';
+      return;
+    }
+    if (file.size > 1024 * 1024) {
+      setLogoError('El logo no debe superar 1 MB.');
+      event.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setLogoUrl(reader.result);
+    };
+    reader.onerror = () => setLogoError('No se pudo leer el archivo del logo.');
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   const handleExportBackup = async () => {
@@ -87,6 +131,59 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   };
 
+  const handleChangePassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setPasswordMessage('');
+    setPasswordError('');
+
+    if (newPassword.length < 6) {
+      setPasswordError('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('La nueva contraseña y su confirmación no coinciden.');
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordMessage('Tu contraseña se actualizó correctamente.');
+    } catch (err: any) {
+      const code = err?.code;
+      const message =
+        code === 'auth/wrong-password' || code === 'auth/invalid-credential'
+          ? 'La contraseña actual no es correcta.'
+          : code === 'auth/weak-password'
+          ? 'La nueva contraseña debe tener al menos 6 caracteres.'
+          : err?.message || 'No se pudo cambiar la contraseña.';
+      setPasswordError(message);
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handlePasswordRecovery = async () => {
+    if (!currentUser?.email) {
+      setPasswordError('No encontramos el correo de esta cuenta.');
+      return;
+    }
+    setPasswordError('');
+    setPasswordMessage('');
+    setIsSendingRecovery(true);
+    try {
+      await requestPasswordRecovery(currentUser.email);
+      setPasswordMessage(`Enviamos un enlace para restablecer la contraseña a ${currentUser.email}.`);
+    } catch (err: any) {
+      setPasswordError(err?.message || 'No se pudo enviar el enlace de recuperación.');
+    } finally {
+      setIsSendingRecovery(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Encabezado */}
@@ -99,6 +196,79 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           Ajustes de zona horaria, exportación de datos y bitácora de auditoría
         </p>
       </div>
+
+      <section className="bg-white p-5 rounded-xl border border-slate-200 shadow-xs space-y-4">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+          <Lock className="w-4 h-4 text-slate-700" />
+          <h2 className="text-sm font-semibold text-slate-900">Seguridad de la cuenta</h2>
+        </div>
+        <p className="text-xs text-slate-600">
+          Cambia la contraseña de tu propia cuenta ({currentUser?.email}). Se te pedirá la contraseña actual para confirmar el cambio.
+        </p>
+        {passwordMessage && (
+          <p role="status" className="p-3 text-xs bg-emerald-50 text-emerald-800 rounded-lg border border-emerald-200">
+            {passwordMessage}
+          </p>
+        )}
+        {passwordError && (
+          <p role="alert" className="p-3 text-xs bg-rose-50 text-rose-700 rounded-lg border border-rose-200">
+            {passwordError}
+          </p>
+        )}
+        <form onSubmit={handleChangePassword} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Contraseña actual</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(event) => setCurrentPassword(event.target.value)}
+                autoComplete="current-password"
+                required
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Nueva contraseña</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(event) => setNewPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={6}
+                required
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">Confirmar nueva contraseña</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                autoComplete="new-password"
+                minLength={6}
+                required
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="submit" size="sm" isLoading={isChangingPassword}>
+              Actualizar contraseña
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handlePasswordRecovery}
+              isLoading={isSendingRecovery}
+            >
+              No recuerdo la actual: enviar enlace
+            </Button>
+          </div>
+        </form>
+      </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Formulario de Ajustes */}
@@ -146,6 +316,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
+                Ciudad de la Congregación
+              </label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ej: Santa Tecla, El Salvador"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                OpenStreetMap buscará esta ciudad para centrar inicialmente los mapas.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
                 Zona Horaria Oficial
               </label>
               <select
@@ -162,6 +348,27 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <option value="America/Argentina/Buenos_Aires">America/Argentina/Buenos_Aires (UTC-3)</option>
                 <option value="Europe/Madrid">Europe/Madrid (UTC+1 / UTC+2)</option>
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Logo para programas PDF (PNG o JPEG, máximo 1 MB)
+              </label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg"
+                onChange={handleLogoFile}
+                className="w-full text-xs text-slate-600 file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-xs file:font-medium"
+              />
+              {logoError && <p className="mt-1 text-xs text-rose-700">{logoError}</p>}
+              {logoUrl && (
+                <div className="mt-2 flex items-center gap-3">
+                  <img src={logoUrl} alt="Vista previa del logo" className="h-14 max-w-36 object-contain border rounded p-1" />
+                  <Button type="button" variant="outline" size="sm" onClick={() => setLogoUrl('')}>
+                    Quitar logo
+                  </Button>
+                </div>
+              )}
             </div>
 
             <Button type="submit" size="sm" isLoading={isSaving}>
