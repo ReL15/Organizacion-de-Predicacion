@@ -55,6 +55,10 @@ Configura `DATABASE_URL` en `.env` para desarrollo local o como variable de ento
 DATABASE_URL="postgresql://usuario:contraseña@host/base?sslmode=require"
 ```
 
+### Despliegue en Vercel
+
+El frontend se compila como una aplicación Vite estática y las rutas `/api/*` se atienden mediante una función Node.js que ejecuta Express. En la configuración del proyecto Vercel, agrega `DATABASE_URL` en **Settings → Environment Variables** para Production y Preview; utiliza la URL de conexión agrupada (pooler) de Neon si está disponible. La misma base debe permitir conexiones desde Vercel. Vercel no lee el archivo `.env` local: después de agregar o cambiar variables, crea un nuevo despliegue. Si falta la conexión o no se puede alcanzar PostgreSQL, `/api/health` devuelve un error en lugar de indicar falsamente que la base está lista.
+
 La configuración pública del proyecto Firebase se encuentra en `firebase-applet-config.json`. En Firebase Console, habilita **Authentication → Sign-in method → Google** y autoriza el dominio donde se sirve la aplicación. Los coordinadores y el usuario maestro pueden cambiar la contraseña de su propia cuenta desde **Configuración → Seguridad de la cuenta** (se solicita la contraseña actual); si no la recuerdan, pueden pedir un enlace de restablecimiento de Firebase desde esa sección o desde la pantalla de inicio de sesión.
 
 Los mapas usan OpenStreetMap y la búsqueda de ciudades usa Nominatim. No requieren API key ni una cuenta de facturación. La geocodificación está limitada a una solicitud por segundo y se almacena en caché durante la sesión del navegador; el servicio público es de mejor esfuerzo y no debe usarse para cargas masivas o comerciales de alto volumen. Indica la ciudad en **Configuración** para centrar inicialmente los mapas. Los puntos de exhibidores se registran en **Predicación Pública → Puntos Fijos → Agregar Punto de Exhibidores**. Allí y en **Lugares de Salida** se puede ubicar el marcador o ingresar coordenadas GPS manualmente. En Configuración también se puede subir un logo PNG/JPEG (máximo 1 MB), que aparecerá en los PDF de programas y reportes.

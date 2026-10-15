@@ -45,8 +45,28 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+let databaseInitialization: Promise<void> | undefined;
+
+function initializeDatabase() {
+  if (!databaseInitialization) {
+    databaseInitialization = bootstrapDatabase().catch((error) => {
+      databaseInitialization = undefined;
+      throw error;
+    });
+  }
+  return databaseInitialization;
+}
 
 app.use(express.json({ limit: '2mb' }));
+app.use('/api', async (_req: Request, res: Response, next) => {
+  try {
+    await initializeDatabase();
+    next();
+  } catch (error) {
+    console.error('Base de datos no disponible:', error);
+    res.status(503).json({ error: 'La base de datos no está disponible. Verifica la configuración del servidor.' });
+  }
+});
 
 // Auth helper middleware that extracts user info from Firebase Token or dev header
 async function getUserFromRequest(req: Request) {
@@ -566,8 +586,7 @@ app.post('/api/audit-logs', async (req: Request, res: Response) => {
 // VITE INTEGRATION EN DESARROLLO Y PRODUCCIÓN
 // ====================================================
 async function startServer() {
-  // Inicializar tablas y datos base en PostgreSQL
-  await bootstrapDatabase();
+  await initializeDatabase();
 
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.resolve(__dirname, 'dist')));
@@ -575,7 +594,8 @@ async function startServer() {
       res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
     });
   } else {
-    const vite = await createViteServer({
+    const { createServer } = await import('vite');
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
@@ -587,7 +607,11 @@ async function startServer() {
   });
 }
 
-startServer().catch((error) => {
-  console.error('No se pudo iniciar el servidor:', error);
-  process.exitCode = 1;
-});
+export default app;
+
+if (process.env.VERCEL !== '1') {
+  startServer().catch((error) => {
+    console.error('No se pudo iniciar el servidor:', error);
+    process.exitCode = 1;
+  });
+}
