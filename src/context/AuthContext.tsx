@@ -3,7 +3,7 @@
  * Conectado a Firebase Authentication (correo y contraseña) y PostgreSQL.
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { UserProfile, UserRole, Congregation } from '../types';
 import {
   auth,
@@ -35,7 +35,12 @@ interface AuthContextType {
   switchCongregation: (congregationId: string) => Promise<void>;
   refreshCongregations: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
-  registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
+  registerWithEmail: (
+    email: string,
+    pass: string,
+    name: string,
+    congregationId: string
+  ) => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -55,10 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [availableCongregations, setAvailableCongregations] = useState<Congregation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const isRegistering = useRef(false);
 
   useEffect(() => {
     // Escuchar cambios de autenticación de Firebase
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user && isRegistering.current) return;
       setIsLoading(true);
       setError(null);
       if (user && user.email) {
@@ -156,24 +163,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const registerWithEmail = async (email: string, pass: string, name: string) => {
+  const registerWithEmail = async (
+    email: string,
+    pass: string,
+    name: string,
+    congregationId: string
+  ) => {
     setIsLoading(true);
     setError(null);
+    isRegistering.current = true;
     try {
-      const result = await createUserWithEmailAndPassword(auth, email, pass);
+      let result;
+      try {
+        result = await createUserWithEmailAndPassword(auth, email, pass);
+      } catch (err: any) {
+        if (err?.code !== 'auth/email-already-in-use') throw err;
+        result = await signInWithEmailAndPassword(auth, email, pass);
+      }
       if (result.user.email) {
         const profile = await apiService.syncAuthUser({
           uid: result.user.uid,
           email: result.user.email,
           displayName: name,
+          congregationId,
         });
         setCurrentUser(profile);
+        setIsBootstrapAdmin(Boolean(profile.isMasterAdmin));
+        setHasCongregation(Boolean(profile.congregationId));
+        setActiveCongIdState(profile.congregationId);
+        setActiveCongregationId(profile.congregationId);
+        await refreshCongregations();
       }
     } catch (err: any) {
       console.error('Error al registrar usuario:', err);
       setError(err.message || 'Error al crear la cuenta.');
       throw err;
     } finally {
+      isRegistering.current = false;
       setIsLoading(false);
     }
   };

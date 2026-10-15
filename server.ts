@@ -149,22 +149,32 @@ app.post('/api/auth/sync', async (req: Request, res: Response) => {
     }
     const uid = userSession?.firebase?.uid;
     const email = userSession?.firebase?.email;
-    const displayName = userSession?.firebase?.name;
+    const displayName =
+      typeof req.body?.displayName === 'string' && req.body.displayName.trim()
+        ? req.body.displayName.trim()
+        : userSession?.firebase?.name;
     if (!email) return res.status(400).json({ error: 'Correo requerido' });
 
     let user = await getUserByEmail(email);
-    const congregations = await getCongregationsList();
-    const defaultCongId = congregations[0]?.id || 'cong-central-1';
     const isMaster = email.toLowerCase() === 'tch.rivlue15@gmail.com';
 
     if (!user) {
+      const requestedCongregationId = req.body?.congregationId;
+      if (typeof requestedCongregationId !== 'string' || !requestedCongregationId.trim()) {
+        return res.status(400).json({ error: 'Selecciona una congregación para crear tu cuenta.' });
+      }
+      const congregation = await getCongregationById(requestedCongregationId);
+      if (!congregation) {
+        return res.status(400).json({ error: 'La congregación seleccionada no existe.' });
+      }
+
       const parts = (displayName || email.split('@')[0]).split(' ');
       const firstName = parts[0] || 'Publicador';
       const lastName = parts.slice(1).join(' ') || '';
       user = await upsertUserRecord({
         id: `user-${Date.now()}`,
         uid: uid || `uid-${Date.now()}`,
-        congregationId: defaultCongId,
+        congregationId: congregation.id,
         firstName,
         lastName,
         fullName: displayName || `${firstName} ${lastName}`.trim(),

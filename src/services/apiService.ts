@@ -115,6 +115,7 @@ export const apiService = {
     uid: string;
     email: string;
     displayName?: string;
+    congregationId?: string;
   }): Promise<UserProfile> {
     return apiFetch<UserProfile>('/api/auth/sync', {
       method: 'POST',

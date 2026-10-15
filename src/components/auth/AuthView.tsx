@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { apiService } from '../../services/apiService';
+import { Congregation } from '../../types';
 import { Button } from '../common/Button';
 import { Lock, Mail, User, ShieldCheck } from 'lucide-react';
 
@@ -20,10 +22,39 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [congregations, setCongregations] = useState<Congregation[]>([]);
+  const [congregationSearch, setCongregationSearch] = useState('');
+  const [selectedCongregation, setSelectedCongregation] = useState<Congregation | null>(null);
+  const [isLoadingCongregations, setIsLoadingCongregations] = useState(false);
+  const [congregationError, setCongregationError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'error' | 'success'; text: string } | null>(
     null
   );
+
+  useEffect(() => {
+    if (mode !== 'register') return;
+
+    let isCurrent = true;
+    setIsLoadingCongregations(true);
+    setCongregationError('');
+    apiService.getCongregationsList()
+      .then((list) => {
+        if (isCurrent) setCongregations(list);
+      })
+      .catch((err: Error) => {
+        if (isCurrent) {
+          setCongregationError(err.message || 'No se pudieron cargar las congregaciones.');
+        }
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingCongregations(false);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [mode]);
 
   if (isModal && !isOpen) return null;
 
@@ -38,7 +69,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
         if (onClose) onClose();
       } else if (mode === 'register') {
         if (!fullName.trim()) throw new Error('Ingresa tu nombre completo.');
-        await registerWithEmail(email, password, fullName);
+        if (!selectedCongregation) throw new Error('Busca y selecciona tu congregación.');
+        await registerWithEmail(email, password, fullName, selectedCongregation.id);
         if (onClose) onClose();
       } else if (mode === 'recovery') {
         await requestPasswordRecovery(email);
@@ -87,7 +119,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
           {mode === 'login'
             ? 'Acceso para publicadores y coordinadores de congregación'
             : mode === 'register'
-            ? 'Registra tu perfil en la congregación activa'
+            ? 'Crea tu cuenta como publicador y selecciona tu congregación'
             : 'Introduce tu correo para restablecer la clave'}
         </p>
       </div>
@@ -106,22 +138,101 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
 
       <form onSubmit={handleSubmit} className="space-y-3.5">
         {mode === 'register' && (
-          <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
-              Nombre y Apellido <span className="text-rose-500">*</span>
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+          <>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Nombre y Apellido <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Juan Pérez"
+                  autoComplete="name"
+                  required
+                  className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-700 mb-1">
+                Congregación <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Juan Pérez"
+                value={congregationSearch}
+                onChange={(event) => {
+                  setCongregationSearch(event.target.value);
+                  setSelectedCongregation(null);
+                  setCongregationError('');
+                }}
+                placeholder={isLoadingCongregations ? 'Cargando congregaciones...' : 'Escribe el nombre de tu congregación'}
+                autoComplete="off"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-expanded={Boolean(congregationSearch && !selectedCongregation)}
+                aria-controls="congregation-options"
+                disabled={isLoadingCongregations || Boolean(congregationError)}
                 required
-                className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-slate-100"
               />
+              {selectedCongregation && (
+                <p className="mt-1 text-xs text-emerald-700" role="status">
+                  Congregación seleccionada: {selectedCongregation.name}
+                </p>
+              )}
+              {congregationError && (
+                <div className="mt-1 flex items-center justify-between gap-2 text-xs text-rose-700" role="alert">
+                  <span>{congregationError}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMode('login')}
+                    className="font-semibold underline"
+                  >
+                    Volver al inicio de sesión
+                  </button>
+                </div>
+              )}
+              {!selectedCongregation && congregationSearch.trim() && !isLoadingCongregations && !congregationError && (
+                <ul id="congregation-options" role="listbox" className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-sm">
+                  {congregations
+                    .filter((congregation) =>
+                      congregation.name.toLocaleLowerCase().includes(congregationSearch.trim().toLocaleLowerCase())
+                    )
+                    .map((congregation) => (
+                      <li key={congregation.id} role="option" aria-selected={false}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCongregation(congregation);
+                            setCongregationSearch(congregation.name);
+                          }}
+                          className="w-full px-3 py-2 text-left text-xs text-slate-700 hover:bg-blue-50"
+                        >
+                          {congregation.name}
+                          {congregation.city && <span className="ml-1 text-slate-400">· {congregation.city}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  {congregations.every(
+                    (congregation) =>
+                      !congregation.name.toLocaleLowerCase().includes(congregationSearch.trim().toLocaleLowerCase())
+                  ) && (
+                    <li className="px-3 py-2 text-xs text-slate-500">
+                      No hay congregaciones que coincidan con la búsqueda.
+                    </li>
+                  )}
+                </ul>
+              )}
+              {!isLoadingCongregations && !congregationError && congregations.length === 0 && (
+                <p className="mt-1 text-xs text-rose-700" role="alert">
+                  No hay congregaciones disponibles para registrarse.
+                </p>
+              )}
             </div>
-          </div>
+          </>
         )}
 
         <div>
@@ -188,6 +299,8 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
               onClick={() => {
                 setMode('register');
                 setMessage(null);
+                setCongregationSearch('');
+                setSelectedCongregation(null);
               }}
               className="font-semibold text-blue-700 hover:underline"
             >
