@@ -10,6 +10,7 @@ import {
   PublicPreachingAssignment,
   Territory,
 } from '../types';
+import { getDayOfWeekName } from '../lib/dateUtils';
 
 function addCongregationLogo(doc: jsPDF, congregation: Congregation): void {
   const logo = congregation.logoUrl;
@@ -76,10 +77,10 @@ export const pdfGenerator = {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
 
-    doc.text('Fecha / Hora', margin + 3, y + 5.5);
-    doc.text('Lugar de Salida', margin + 40, y + 5.5);
-    doc.text('Encargado', margin + 95, y + 5.5);
-    doc.text('Territorio', margin + 140, y + 5.5);
+    doc.text('Día / Fecha / Hora', margin + 3, y + 5.5);
+    doc.text('Lugar de Salida', margin + 45, y + 5.5);
+    doc.text('Encargado', margin + 98, y + 5.5);
+    doc.text('Territorio / Modalidad', margin + 138, y + 5.5);
 
     y += 9;
 
@@ -95,8 +96,10 @@ export const pdfGenerator = {
       doc.text('No hay salidas de predicación programadas en este período.', margin + 3, y + 6);
     } else {
       sorted.forEach((item, index) => {
+        const rowHeight = item.notes ? 17 : 14;
+
         // Paginación si excede el tamaño
-        if (y > 270) {
+        if (y + rowHeight > 275) {
           doc.addPage();
           y = 20;
         }
@@ -104,34 +107,103 @@ export const pdfGenerator = {
         const isAlt = index % 2 === 1;
         if (isAlt) {
           doc.setFillColor(248, 250, 252);
-          doc.rect(margin, y, pageWidth - margin * 2, 14, 'F');
+          doc.rect(margin, y, pageWidth - margin * 2, rowHeight, 'F');
         }
 
+        // Columna 1: Día destacado y fecha/hora
+        const dayName = getDayOfWeekName(item.date) || 'Salida';
+        const [yStr, mStr, dStr] = item.date.split('-');
+        const dateFormatted = dStr && mStr ? `${dStr}/${mStr}/${yStr}` : item.date;
+
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(9.5);
         doc.setTextColor(15, 23, 42);
+        doc.text(dayName, margin + 3, y + 5);
 
-        // Fecha en formato legible
-        doc.text(`${item.date} · ${item.time}`, margin + 3, y + 5);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`${dateFormatted} · ${item.time}`, margin + 3, y + 9.5);
 
+        // Columna 2: Lugar de Salida
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.setTextColor(30, 41, 59);
+        doc.text(doc.splitTextToSize(item.placeName, 48), margin + 45, y + 5);
+
+        // Columna 3: Encargado
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8.5);
         doc.setTextColor(51, 65, 85);
-        doc.text(doc.splitTextToSize(item.placeName, 52), margin + 40, y + 5);
-        doc.text(item.leaderName, margin + 95, y + 5);
+        doc.text(doc.splitTextToSize(item.leaderName, 36), margin + 98, y + 5);
 
-        const terrText = item.territoryNumber ? `Terr. #${item.territoryNumber}` : 'Por asignar';
-        doc.text(terrText, margin + 140, y + 5);
+        // Columna 4: Modalidad y Territorio
+        if (item.activityType === 'RURAL') {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(5, 150, 105); // emerald-600
+          doc.text('[RURAL]', margin + 138, y + 5);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(51, 65, 85);
+          const terrDesc = item.territoryNumber
+            ? `Terr. #${item.territoryNumber}`
+            : 'Territorio Rural';
+          doc.text(terrDesc, margin + 138, y + 9.5);
+        } else if (item.activityType === 'CALLES') {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(180, 83, 9); // amber-700
+          doc.text('Por las Calles', margin + 138, y + 5);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text('(Sin tarjeta)', margin + 138, y + 9);
+        } else if (item.activityType === 'ZOOM') {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(2, 132, 199); // sky-600
+          doc.text('Por Zoom', margin + 138, y + 5);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text('(Sin tarjeta)', margin + 138, y + 9);
+        } else if (item.activityType === 'CARTAS') {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(126, 34, 206); // purple-700
+          doc.text('Cartas / Teléfono', margin + 138, y + 5);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text('(Sin tarjeta)', margin + 138, y + 9);
+        } else if (item.activityType === 'GIRA') {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(13, 148, 136); // teal-600
+          doc.text('Gira de Predicación', margin + 138, y + 5);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(7);
+          doc.setTextColor(100, 116, 139);
+          doc.text('(Sin tarjeta)', margin + 138, y + 9);
+        } else {
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(15, 23, 42);
+          const terrText = item.territoryNumber ? `Terr. #${item.territoryNumber}` : 'Por asignar';
+          doc.text(terrText, margin + 138, y + 5.5);
+        }
 
         if (item.notes) {
-          doc.setTextColor(100, 116, 139);
+          doc.setFont('helvetica', 'italic');
           doc.setFontSize(7.5);
-          doc.text(`Nota: ${item.notes.substring(0, 75)}`, margin + 3, y + 10);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`Nota: ${item.notes.substring(0, 80)}`, margin + 3, y + 14);
         }
 
         doc.setDrawColor(241, 245, 249);
-        doc.line(margin, y + 14, pageWidth - margin, y + 14);
-        y += 15;
+        doc.line(margin, y + rowHeight, pageWidth - margin, y + rowHeight);
+        y += rowHeight + 1;
       });
     }
 
@@ -208,10 +280,14 @@ export const pdfGenerator = {
       doc.setDrawColor(226, 232, 240);
       doc.rect(margin, y, pageWidth - margin * 2, 22, 'S');
 
+      const dayName = getDayOfWeekName(item.date);
+      const [yStr, mStr, dStr] = item.date.split('-');
+      const dateFormatted = dStr && mStr ? `${dStr}/${mStr}/${yStr}` : item.date;
+
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text(`${item.date} · ${item.time} (${item.duration} min)`, margin + 4, y + 6);
+      doc.text(`${dayName ? `${dayName} ` : ''}${dateFormatted} · ${item.time} (${item.duration} min)`, margin + 4, y + 6);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);

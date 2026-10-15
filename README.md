@@ -1,4 +1,4 @@
-# Organizador de la Predicación Congregacional
+# Programa de Predicación
 
 Aplicación web integral, accesible y adaptable a móviles, diseñada para planificar y administrar de forma ordenada y segura la actividad de predicación de una congregación (reuniones para el servicio del campo, territorios geográficos, lugares de salida, predicación pública con carritos y directorio de publicadores).
 
@@ -8,7 +8,7 @@ Aplicación web integral, accesible y adaptable a móviles, diseñada para plani
 
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS 4.
 - **Identidad y Backend**: Firebase Authentication para inicio de sesión y un servidor Express/TypeScript que accede a PostgreSQL (Neon). Las credenciales de la base de datos sólo se configuran en el servidor.
-- **Cartografía**: OpenStreetMap y Leaflet para trazar territorios y administrar ubicaciones GPS de lugares de salida y exhibidores, sin clave API de pago.
+- **Cartografía**: Google Maps (capas de Calles y Satélite) para trazar territorios y administrar ubicaciones GPS de lugares de salida, Salón del Reino y exhibidores.
 - **Reportes e Impresión**: jsPDF para generar programas y reportes oficiales en formato PDF listos para imprimir.
 - **Iconografía**: `lucide-react`.
 
@@ -63,7 +63,7 @@ La configuración pública del proyecto Firebase se encuentra en `firebase-apple
 
 El registro solicita nombre, correo, contraseña y congregación. El campo de congregación busca coincidencias existentes y exige seleccionar una; el servidor crea el perfil como `PUBLICADOR` asociado a esa congregación.
 
-Los mapas usan OpenStreetMap y la búsqueda de ciudades usa Nominatim. No requieren API key ni una cuenta de facturación. La geocodificación está limitada a una solicitud por segundo y se almacena en caché durante la sesión del navegador; el servicio público es de mejor esfuerzo y no debe usarse para cargas masivas o comerciales de alto volumen. Indica la ciudad en **Configuración** para centrar inicialmente los mapas. Los puntos de exhibidores se registran en **Predicación Pública → Puntos Fijos → Agregar Punto de Exhibidores**. Allí y en **Lugares de Salida** se puede ubicar el marcador o ingresar coordenadas GPS manualmente. En Configuración también se puede subir un logo PNG/JPEG (máximo 1 MB), que aparecerá en los PDF de programas y reportes.
+Los mapas usan Google Maps (con capas seleccionables de Calles y Satélite) para trazar territorios y visualizar con exactitud cada vértice puntuado. La congregación utiliza la dirección física y coordenadas GPS del Salón del Reino para centrar y orientar los mapas. Los puntos de exhibidores se registran en **Predicación Pública → Puntos Fijos → Agregar Punto de Exhibidores**. Allí y en **Lugares de Salida** se puede ubicar el marcador en Google Maps o ingresar coordenadas GPS manualmente. En Configuración también se puede subir un logo PNG/JPEG (máximo 1 MB), que aparecerá en los PDF de programas y reportes.
 
 Para borrar también la cuenta Firebase asociada a un publicador, ejecuta el servidor con una cuenta de servicio de Firebase Admin (por `GOOGLE_APPLICATION_CREDENTIALS` o Application Default Credentials) que tenga permiso para administrar usuarios. Las credenciales de servicio no deben incluirse en el repositorio.
 

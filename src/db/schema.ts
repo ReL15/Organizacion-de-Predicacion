@@ -95,6 +95,7 @@ export const weeklyAssignments = pgTable('weekly_assignments', {
   congregationId: text('congregation_id').notNull().references(() => congregations.id),
   date: text('date').notNull(),
   time: text('time').notNull(),
+  activityType: text('activity_type').default('TERRITORIO'), // 'TERRITORIO' | 'RURAL' | 'CALLES' | 'ZOOM' | 'CARTAS'
   placeId: text('place_id').notNull(),
   placeName: text('place_name').notNull(),
   leaderId: text('leader_id').notNull(),

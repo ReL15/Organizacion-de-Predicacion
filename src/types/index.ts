@@ -96,11 +96,20 @@ export interface TerritoryHistoryRecord {
   notes?: string;
 }
 
+export type PreachingActivityType =
+  | 'TERRITORIO'
+  | 'RURAL'
+  | 'CALLES'
+  | 'ZOOM'
+  | 'CARTAS'
+  | 'GIRA';
+
 export interface WeeklyAssignment {
   id: string;
   congregationId: string;
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
+  activityType?: PreachingActivityType; // Modalidad: Territorio, Rural, Calles, Zoom, Cartas
   placeId: string;
   placeName: string;
   leaderId: string;

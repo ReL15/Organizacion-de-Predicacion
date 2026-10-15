@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Territory, PreachingPlace, PublicPreachingPlace, GeoPoint } from '../../types';
-import { geocodeCity } from '../../lib/osmGeocoding';
+import { geocodeCity } from '../../lib/googleGeocoding';
 import { Button } from '../common/Button';
-import { RotateCcw, Layers, MapPin, Building2 } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 interface TerritoryMapProps {
   territories: Territory[];
@@ -17,7 +17,6 @@ interface TerritoryMapProps {
   onPolygonChange?: (points: GeoPoint[]) => void;
   initialCenter?: [number, number];
   city?: string;
-  kingdomHallLocation?: GeoPoint;
   heightClassName?: string;
   autoFitBounds?: boolean;
 }
@@ -42,7 +41,6 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
   onPolygonChange,
   initialCenter = DEFAULT_MAP_CENTER,
   city,
-  kingdomHallLocation,
   heightClassName = 'h-[450px] md:h-[520px]',
   autoFitBounds = true,
 }) => {
@@ -72,16 +70,26 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
     let cancelled = false;
     setMapError('');
 
-    // Priorizar coordenadas del Salón del Reino si existen
-    const centerPoint: [number, number] =
-      kingdomHallLocation && kingdomHallLocation.latitude && kingdomHallLocation.longitude
-        ? [kingdomHallLocation.latitude, kingdomHallLocation.longitude]
-        : initialCenter;
+    // Calcular centro basado directamente en los territorios
+    let centerPoint: [number, number] = initialCenter;
+    const selectedTerr = territories.find((t) => t.id === selectedTerritoryId);
+    const activePoints = selectedTerr?.polygon?.length
+      ? selectedTerr.polygon
+      : editingPolygonPoints?.length
+      ? editingPolygonPoints
+      : territories.find((t) => t.polygon?.length)?.polygon;
+
+    if (activePoints && activePoints.length > 0) {
+      const avgLat = activePoints.reduce((sum, p) => sum + p.latitude, 0) / activePoints.length;
+      const avgLng = activePoints.reduce((sum, p) => sum + p.longitude, 0) / activePoints.length;
+      centerPoint = [Number(avgLat.toFixed(6)), Number(avgLng.toFixed(6))];
+    }
 
     const map = L.map(mapContainerRef.current, {
       center: centerPoint,
       zoom: 15,
       zoomControl: true,
+      attributionControl: false,
     });
 
     // Capa de Google Maps (Calles)
@@ -90,7 +98,6 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
       {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-        attribution: '&copy; Google Maps',
       }
     );
 
@@ -115,16 +122,14 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
       state.onPolygonChange(updated);
     });
 
-    // Si no hay Salón del Reino y hay ciudad configurada, buscar centro
-    if (!kingdomHallLocation?.latitude && city?.trim()) {
+    // Si no hay puntos trazados y hay ciudad configurada, usar centro referencial
+    if ((!activePoints || activePoints.length === 0) && city?.trim()) {
       void geocodeCity(city)
         .then((center) => {
           if (!cancelled && center) map.setView([center.latitude, center.longitude], 14);
         })
-        .catch((error: unknown) => {
-          if (!cancelled) {
-            setMapError(error instanceof Error ? error.message : 'No se pudo ubicar la ciudad.');
-          }
+        .catch(() => {
+          // Ignorar silenciosamente
         });
     }
 
@@ -137,7 +142,7 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
       polygonLayerRef.current = null;
       editLayerRef.current = null;
     };
-  }, [kingdomHallLocation?.latitude, kingdomHallLocation?.longitude, initialCenter]);
+  }, [initialCenter]);
 
   // Cambiar entre capa de calles y satélite/híbrido de Google Maps
   useEffect(() => {
@@ -156,14 +161,13 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
     const newLayer = L.tileLayer(tileUrl, {
       maxZoom: 20,
       subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-      attribution: '&copy; Google Maps',
     });
 
     newLayer.addTo(map);
     tileLayerRef.current = newLayer;
   }, [mapType]);
 
-  // Renderizar territorios, vértices puntuados, lugares de reunión y Salón del Reino
+  // Renderizar territorios y vértices puntuados con círculos perfectos sin deformación
   useEffect(() => {
     const map = mapRef.current;
     const polygonLayer = polygonLayerRef.current;
@@ -174,32 +178,6 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
     polygonLayer.clearLayers();
     markerLayer.clearLayers();
 
-    // 1. Salón del Reino de la Congregación
-    if (kingdomHallLocation && kingdomHallLocation.latitude && kingdomHallLocation.longitude) {
-      const khIcon = L.divIcon({
-        className: 'custom-kh-icon',
-        html: `
-          <div style="background:#0f172a;color:#ffffff;padding:5px 8px;border-radius:8px;border:2px solid #ffffff;box-shadow:0 2px 8px rgba(0,0,0,0.3);font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-            🏛️ Salón del Reino
-          </div>
-        `,
-        iconAnchor: [60, 16],
-      });
-
-      L.marker([kingdomHallLocation.latitude, kingdomHallLocation.longitude], {
-        icon: khIcon,
-        zIndexOffset: 1000,
-      })
-        .bindPopup(`
-          <div style="font-size:12px;font-family:sans-serif;">
-            <strong style="font-size:13px;display:block;margin-bottom:2px;">🏛️ Salón del Reino</strong>
-            <span>Ubicación oficial de la congregación</span>
-          </div>
-        `)
-        .addTo(markerLayer);
-    }
-
-    // 2. Territorios y sus puntos exactamente puntuados
     let targetBounds: L.LatLngBounds | null = null;
 
     territories.forEach((territory) => {
@@ -217,69 +195,125 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
           color: isSelected ? '#0f172a' : colors.stroke,
           weight: isSelected ? 3.5 : 2,
           fillColor: colors.fill,
-          fillOpacity: isSelected ? 0.45 : 0.25,
+          fillOpacity: isSelected ? 0.42 : 0.22,
         });
 
-        // Popup con información del territorio
+        const statusBg =
+          territory.status === 'DISPONIBLE'
+            ? '#ecfdf5'
+            : territory.status === 'ASIGNADO'
+            ? '#eff6ff'
+            : territory.status === 'EN_PROCESO'
+            ? '#fffbeb'
+            : territory.status === 'COMPLETADO'
+            ? '#f5f3ff'
+            : '#f1f5f9';
+
+        const statusTextColor =
+          territory.status === 'DISPONIBLE'
+            ? '#059669'
+            : territory.status === 'ASIGNADO'
+            ? '#2563eb'
+            : territory.status === 'EN_PROCESO'
+            ? '#d97706'
+            : territory.status === 'COMPLETADO'
+            ? '#7c3aed'
+            : '#64748b';
+
+        // Popup con información y detalles completos al hacer clic sobre la sección del mapa
         const popupContent = `
-          <div style="font-size:12px;font-family:sans-serif;line-height:1.4;">
-            <strong style="font-size:13px;display:block;">Territorio #${territory.number}${territory.name ? ` · ${territory.name}` : ''}</strong>
-            <div style="margin-top:2px;color:#475569;"><b>Estado:</b> ${territory.status}</div>
-            ${territory.lastAssignedToName ? `<div style="color:#475569;"><b>Asignado a:</b> ${territory.lastAssignedToName}</div>` : ''}
-            ${territory.lastProgress ? `<div style="margin-top:4px;color:#1d4ed8;font-weight:600;">📌 Quedó: ${territory.lastProgress}</div>` : ''}
-            ${territory.observations ? `<div style="margin-top:4px;color:#64748b;font-style:italic;">Nota: ${territory.observations}</div>` : ''}
+          <div style="font-size:12px;font-family:sans-serif;line-height:1.45;min-width:210px;padding:2px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px;">
+              <strong style="font-size:14px;color:#0f172a;">Territorio #${territory.number}</strong>
+              <span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:${statusBg};color:${statusTextColor};">
+                ${territory.status}
+              </span>
+            </div>
+            ${territory.name ? `<div style="font-weight:600;color:#334155;margin-bottom:3px;font-size:12px;">${territory.name}</div>` : ''}
+            ${
+              territory.lastAssignedToName
+                ? `
+              <div style="color:#475569;margin-bottom:3px;font-size:11px;">
+                <b>Asignado a:</b> ${territory.lastAssignedToName}
+                ${territory.lastAssignedDate ? `<span style="color:#94a3b8;font-size:10px;"> (${territory.lastAssignedDate})</span>` : ''}
+              </div>
+            `
+                : '<div style="color:#059669;font-weight:500;margin-bottom:3px;font-size:11px;">Disponible para asignación</div>'
+            }
+            ${
+              territory.lastProgress
+                ? `
+              <div style="margin-top:6px;padding:5px 8px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;color:#1e40af;">
+                <div style="font-weight:700;font-size:11px;">📌 Dónde quedó:</div>
+                <div style="margin-top:2px;font-size:11px;color:#1d4ed8;">${territory.lastProgress}</div>
+                ${
+                  territory.lastProgressDate || territory.lastProgressPublisher
+                    ? `
+                  <div style="font-size:10px;color:#3b82f6;margin-top:2px;">
+                    ${territory.lastProgressDate || ''} ${
+                        territory.lastProgressPublisher
+                          ? `· por ${territory.lastProgressPublisher}`
+                          : ''
+                      }
+                  </div>
+                `
+                    : ''
+                }
+              </div>
+            `
+                : ''
+            }
+            ${
+              territory.observations
+                ? `
+              <div style="margin-top:5px;color:#64748b;font-size:11px;font-style:italic;">
+                Nota: ${territory.observations}
+              </div>
+            `
+                : ''
+            }
           </div>
         `;
-        polygon.bindPopup(popupContent);
-        polygon.on('click', () => selectRef.current?.(territory.id));
+
+        polygon.bindPopup(popupContent, { maxWidth: 280 });
+
+        // Al hacer clic en la sección del mapa, abrir popup con detalles y seleccionar el territorio
+        polygon.on('click', (e: L.LeafletMouseEvent) => {
+          selectRef.current?.(territory.id);
+          polygon.openPopup(e.latlng);
+        });
+
+        // Efecto visual hover para realzar la sección al pasar el ratón
+        polygon.on('mouseover', () => {
+          polygon.setStyle({
+            fillOpacity: 0.48,
+            weight: isSelected ? 4 : 2.5,
+          });
+        });
+        polygon.on('mouseout', () => {
+          polygon.setStyle({
+            fillOpacity: isSelected ? 0.42 : 0.22,
+            weight: isSelected ? 3.5 : 2,
+          });
+        });
+
         polygon.addTo(polygonLayer);
 
-        // Etiqueta central del territorio
-        const bounds = polygon.getBounds();
-        const center = bounds.getCenter();
-        const centerIcon = L.divIcon({
-          className: 'custom-terr-label',
-          html: `
-            <div style="background:${isSelected ? '#0f172a' : 'rgba(15, 23, 42, 0.85)'};color:#fff;padding:2px 7px;border-radius:999px;font-size:11px;font-weight:700;font-family:monospace;border:1.5px solid #fff;box-shadow:0 2px 5px rgba(0,0,0,0.25);transform:translate(-50%, -50%);white-space:nowrap;">
-              #${territory.number}
-            </div>
-          `,
-          iconAnchor: [0, 0],
-        });
-        L.marker(center, { icon: centerIcon, interactive: false }).addTo(polygonLayer);
-
-        // Guardar bounds si este es el territorio seleccionado
         if (isSelected) {
-          targetBounds = bounds;
+          targetBounds = polygon.getBounds();
         }
-      }
-
-      // Vértices / Puntos Puntuados del Territorio:
-      // Se muestran todos los puntos para que se aprecie exactamente dónde está puntuado
-      polyPoints.forEach((point, idx) => {
-        const isSel = territory.id === selectedTerritoryId;
-        const vertexMarker = L.circleMarker([point.latitude, point.longitude], {
-          radius: isSel ? 6 : 4,
-          fillColor: isSel ? '#f59e0b' : '#38bdf8',
-          color: '#ffffff',
-          weight: isSel ? 2 : 1.5,
-          fillOpacity: 1,
-        });
-
-        vertexMarker.bindTooltip(
-          `<b>Territorio #${territory.number}</b> · Vértice ${idx + 1}<br/><span style="font-size:10px;color:#64748b;">${point.latitude.toFixed(5)}, ${point.longitude.toFixed(5)}</span>`
-        );
-        vertexMarker.on('click', () => selectRef.current?.(territory.id));
-        vertexMarker.addTo(polygonLayer);
-      });
-
-      // Si solo tiene 1 o 2 puntos (no cerró polígono aún), mostrar un marcador visible
-      if (polyPoints.length > 0 && polyPoints.length < 3) {
+      } else if (polyPoints.length > 0 && polyPoints.length < 3) {
+        // Si el territorio tiene solo 1 o 2 puntos trazados, mostrar un punto referencial
         polyPoints.forEach((pt, i) => {
-          const pin = L.marker([pt.latitude, pt.longitude]).bindPopup(
-            `<b>Territorio #${territory.number}</b> (Punto ${i + 1} de trazado)`
-          );
-          pin.addTo(polygonLayer);
+          const marker = L.circleMarker([pt.latitude, pt.longitude], {
+            radius: 6,
+            fillColor: '#f59e0b',
+            color: '#ffffff',
+            weight: 2,
+            fillOpacity: 1,
+          }).bindPopup(`<b>Territorio #${territory.number}</b> (Punto ${i + 1} de trazado)`);
+          marker.on('click', () => selectRef.current?.(territory.id));
+          marker.addTo(polygonLayer);
           if (isSelected) {
             targetBounds = L.latLngBounds([[pt.latitude, pt.longitude]]);
           }
@@ -287,51 +321,75 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
       }
     });
 
-    // 3. Puntos de Salida (Preaching Places)
+    // Puntos de Salida (Lugares de predicación) -> Azul Oscuro
     places.forEach((place) => {
       const marker = L.circleMarker([place.latitude, place.longitude], {
-        radius: 6,
-        fillColor: '#1e293b',
-        color: '#fff',
+        radius: 7,
+        fillColor: '#1e3a8a', // Azul oscuro
+        color: '#ffffff',
         weight: 2,
-        fillOpacity: 0.9,
+        fillOpacity: 1,
       });
       const popup = `
-        <div style="font-size:12px;font-family:sans-serif;">
-          <strong>${place.name}</strong>
-          <div style="color:#64748b;">Lugar de salida · ${place.address}</div>
+        <div style="font-size:12px;font-family:sans-serif;line-height:1.45;min-width:190px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1e3a8a;border:1.5px solid #ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.3);flex-shrink:0;"></span>
+            <strong style="font-size:13px;color:#0f172a;">${place.name}</strong>
+          </div>
+          <div style="color:#1e40af;font-weight:600;font-size:11px;margin-bottom:2px;">
+            Lugar de Predicación (Punto de Salida)
+          </div>
+          <div style="color:#475569;font-size:11px;">${place.address}</div>
+          ${place.description ? `<div style="margin-top:4px;color:#64748b;font-size:11px;font-style:italic;">${place.description}</div>` : ''}
+          <div style="margin-top:6px;padding-top:4px;border-top:1px solid #e2e8f0;">
+            <a href="https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}" target="_blank" rel="noopener noreferrer" style="color:#1d4ed8;text-decoration:none;font-weight:600;font-size:11px;display:inline-flex;align-items:center;gap:3px;">
+              Ver en Google Maps &rarr;
+            </a>
+          </div>
         </div>
       `;
-      marker.bindPopup(popup).addTo(markerLayer);
+      marker.bindPopup(popup, { maxWidth: 260 }).addTo(markerLayer);
     });
 
-    // 4. Exhibidores públicos
+    // Exhibidores públicos (Predicación pública) -> Morado
     publicPlaces.forEach((place) => {
       const marker = L.circleMarker([place.latitude, place.longitude], {
-        radius: 6,
-        fillColor: '#0284c7',
-        color: '#fff',
+        radius: 7,
+        fillColor: '#7e22ce', // Morado
+        color: '#ffffff',
         weight: 2,
-        fillOpacity: 0.9,
+        fillOpacity: 1,
       });
       const popup = `
-        <div style="font-size:12px;font-family:sans-serif;">
-          <strong>${place.name}</strong>
-          <div style="color:#64748b;">Exhibidores · ${place.day} · ${place.time}</div>
+        <div style="font-size:12px;font-family:sans-serif;line-height:1.45;min-width:190px;">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7e22ce;border:1.5px solid #ffffff;box-shadow:0 1px 2px rgba(0,0,0,0.3);flex-shrink:0;"></span>
+            <strong style="font-size:13px;color:#0f172a;">${place.name}</strong>
+          </div>
+          <div style="color:#7e22ce;font-weight:600;font-size:11px;margin-bottom:2px;">
+            Predicación Pública (Exhibidores)
+          </div>
+          <div style="color:#475569;font-size:11px;"><b>Horario:</b> ${place.day} · ${place.time}</div>
+          ${place.description ? `<div style="margin-top:4px;color:#64748b;font-size:11px;font-style:italic;">${place.description}</div>` : ''}
+          <div style="margin-top:6px;padding-top:4px;border-top:1px solid #e2e8f0;">
+            <a href="https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}" target="_blank" rel="noopener noreferrer" style="color:#7e22ce;text-decoration:none;font-weight:600;font-size:11px;display:inline-flex;align-items:center;gap:3px;">
+              Ver en Google Maps &rarr;
+            </a>
+          </div>
         </div>
       `;
-      marker.bindPopup(popup).addTo(markerLayer);
+      marker.bindPopup(popup, { maxWidth: 260 }).addTo(markerLayer);
     });
 
-    // 5. Edición interactiva de polígono actual
+    // Edición interactiva de polígono actual
     editLayer.clearLayers();
     if (isEditingPolygon && points.length > 0) {
       points.forEach((point, index) => {
         L.circleMarker([point.latitude, point.longitude], {
           radius: 6,
-          color: '#e11d48',
-          fillColor: '#fff',
-          weight: 2.5,
+          color: '#ffffff',
+          fillColor: '#e11d48',
+          weight: 2,
           fillOpacity: 1,
         })
           .bindTooltip(`Punto ${index + 1}`)
@@ -358,10 +416,10 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
       }
     }
 
-    // Auto-ajustar mapa a los límites del territorio seleccionado para que se vea exactamente donde está puntuado
+    // Auto-ajustar mapa a los límites del territorio seleccionado
     if (autoFitBounds && targetBounds && targetBounds.isValid()) {
       map.fitBounds(targetBounds, {
-        padding: [60, 60],
+        padding: [50, 50],
         maxZoom: 17,
         animate: true,
       });
@@ -373,8 +431,6 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
     selectedTerritoryId,
     isEditingPolygon,
     points,
-    kingdomHallLocation?.latitude,
-    kingdomHallLocation?.longitude,
     autoFitBounds,
   ]);
 
@@ -415,9 +471,34 @@ export const TerritoryMap: React.FC<TerritoryMapProps> = ({
         </button>
       </div>
 
-      {/* Marca de Google Maps */}
-      <div className="absolute bottom-1 left-2 z-[1000] pointer-events-none text-[10px] text-slate-700 bg-white/80 px-1.5 py-0.5 rounded font-sans font-semibold">
-        Google Maps
+      {/* Marca oficial de Google Maps */}
+      <div className="absolute bottom-2 left-2 z-[1000] pointer-events-none flex items-center gap-1.5 bg-white/90 backdrop-blur-xs px-2 py-1 rounded shadow-xs border border-slate-200/80 text-[11px]">
+        <span className="font-bold tracking-tight text-slate-800 flex items-center">
+          <span className="text-[#4285F4]">G</span>
+          <span className="text-[#EA4335]">o</span>
+          <span className="text-[#FBBC05]">o</span>
+          <span className="text-[#4285F4]">g</span>
+          <span className="text-[#34A853]">l</span>
+          <span className="text-[#EA4335]">e</span>
+          <span className="ml-1 text-slate-700 font-semibold text-[10px]">Maps</span>
+        </span>
+        <span className="text-slate-400 text-[10px]">· Datos del mapa ©{new Date().getFullYear()} Google</span>
+      </div>
+
+      {/* Leyenda explicativa de colores */}
+      <div className="absolute bottom-2 right-2 z-[1000] hidden sm:flex items-center gap-2.5 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md shadow-xs border border-slate-200 text-[11px] text-slate-700">
+        <span className="flex items-center gap-1 font-medium text-slate-800">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#1e3a8a] border border-white shadow-xs inline-block"></span>
+          Lugares Predicación
+        </span>
+        <span className="flex items-center gap-1 font-medium text-slate-800">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#7e22ce] border border-white shadow-xs inline-block"></span>
+          Predicación Pública
+        </span>
+        <span className="flex items-center gap-1 text-slate-500">
+          <span className="w-3 h-2 rounded-xs bg-emerald-500/40 border border-emerald-600 inline-block"></span>
+          Territorio (clic para ver detalles)
+        </span>
       </div>
 
       {mapError && (

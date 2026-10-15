@@ -315,8 +315,9 @@ export const DEMO_WEEKLY_ASSIGNMENTS: WeeklyAssignment[] = [
   {
     id: 'week-01',
     congregationId: 'cong-demostracion-01',
-    date: '2026-10-10', // Hoy
+    date: '2026-10-10', // Sábado
     time: '09:00',
+    activityType: 'TERRITORIO',
     placeId: 'place-01',
     placeName: 'Salón del Reino Central',
     leaderId: 'user-coord-01',
@@ -333,13 +334,14 @@ export const DEMO_WEEKLY_ASSIGNMENTS: WeeklyAssignment[] = [
     congregationId: 'cong-demostracion-01',
     date: '2026-10-11', // Domingo
     time: '10:00',
+    activityType: 'RURAL',
     placeId: 'place-02',
     placeName: 'Casa Fam. Martínez',
     leaderId: 'user-super-02',
     leaderName: 'Daniel Rivera',
     territoryId: 'terr-02',
     territoryNumber: '02',
-    notes: 'Predicación tras la reunión pública.',
+    notes: 'Predicación rural hacia los caseríos del norte.',
     hasConflict: false,
     createdAt: '2026-10-01T10:15:00.000Z',
     createdBy: 'user-coord-01',
@@ -349,13 +351,12 @@ export const DEMO_WEEKLY_ASSIGNMENTS: WeeklyAssignment[] = [
     congregationId: 'cong-demostracion-01',
     date: '2026-10-14', // Miércoles
     time: '16:00',
+    activityType: 'CALLES',
     placeId: 'place-03',
     placeName: 'Parque San Martín (Kiosco)',
     leaderId: 'user-asist-03',
     leaderName: 'Mateo Castro',
-    territoryId: 'terr-03',
-    territoryNumber: '03',
-    notes: 'Testimonio informal y casas alrededor del parque.',
+    notes: 'Predicación por las calles y zonas comerciales alrededor del parque. Sin tarjeta.',
     hasConflict: false,
     createdAt: '2026-10-02T11:00:00.000Z',
     createdBy: 'user-super-02',
@@ -363,15 +364,14 @@ export const DEMO_WEEKLY_ASSIGNMENTS: WeeklyAssignment[] = [
   {
     id: 'week-04',
     congregationId: 'cong-demostracion-01',
-    date: '2026-10-17', // Sábado siguiente
+    date: '2026-10-17', // Sábado
     time: '09:00',
+    activityType: 'ZOOM',
     placeId: 'place-01',
     placeName: 'Salón del Reino Central',
     leaderId: 'user-super-02',
     leaderName: 'Daniel Rivera',
-    territoryId: 'terr-01',
-    territoryNumber: '01',
-    notes: 'Seguimiento de revisitas en la zona este.',
+    notes: 'Salida por Zoom para publicadores con circunstancias especiales y cartas.',
     hasConflict: false,
     createdAt: '2026-10-03T12:00:00.000Z',
     createdBy: 'user-super-02',

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { GeoPoint } from '../../types';
-import { geocodeCity } from '../../lib/osmGeocoding';
+import { geocodeCity } from '../../lib/googleGeocoding';
 
 interface CoordinatePickerMapProps {
   value: GeoPoint;
@@ -39,6 +39,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
       center: hasValue ? [value.latitude, value.longitude] : [13.674, -89.284],
       zoom: 15,
       zoomControl: true,
+      attributionControl: false,
     });
 
     const googleLayer = L.tileLayer(
@@ -198,8 +199,16 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
         </div>
 
         {/* Marca de Google Maps */}
-        <div className="absolute bottom-1 right-1 z-[1000] rounded bg-white/90 px-1.5 py-0.5 text-[10px] text-slate-700 font-semibold shadow-xs">
-          Google Maps
+        <div className="absolute bottom-1 right-1 z-[1000] rounded bg-white/90 backdrop-blur-xs px-2 py-0.5 text-[10px] text-slate-700 font-semibold shadow-xs border border-slate-200/80 flex items-center gap-1">
+          <span className="font-bold tracking-tight text-slate-800 flex items-center">
+            <span className="text-[#4285F4]">G</span>
+            <span className="text-[#EA4335]">o</span>
+            <span className="text-[#FBBC05]">o</span>
+            <span className="text-[#4285F4]">g</span>
+            <span className="text-[#34A853]">l</span>
+            <span className="text-[#EA4335]">e</span>
+            <span className="ml-1 text-slate-700 font-semibold text-[9px]">Maps</span>
+          </span>
         </div>
       </div>
 

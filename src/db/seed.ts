@@ -20,6 +20,9 @@ export async function bootstrapDatabase() {
     ADD COLUMN IF NOT EXISTS last_progress text,
     ADD COLUMN IF NOT EXISTS last_progress_date text,
     ADD COLUMN IF NOT EXISTS last_progress_publisher text;
+
+    ALTER TABLE weekly_assignments
+    ADD COLUMN IF NOT EXISTS activity_type text DEFAULT 'TERRITORIO';
   `);
 
   const congregations = await getCongregationsList();

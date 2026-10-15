@@ -21,6 +21,7 @@ interface TerritoryCardModalProps {
   congregation: Congregation;
   onOpenProgressModal?: (territory: Territory) => void;
   places?: PreachingPlace[];
+  canRecordProgress?: boolean;
 }
 
 export const TerritoryCardModal: React.FC<TerritoryCardModalProps> = ({
@@ -30,6 +31,7 @@ export const TerritoryCardModal: React.FC<TerritoryCardModalProps> = ({
   congregation,
   onOpenProgressModal,
   places = [],
+  canRecordProgress = false,
 }) => {
   // Calcular el centro aproximado para abrir directamente en Google Maps
   const polygonPoints = territory.polygon || [];
@@ -160,7 +162,9 @@ export const TerritoryCardModal: React.FC<TerritoryCardModalProps> = ({
               </>
             ) : (
               <p className="text-blue-700/80 italic text-[11px]">
-                Aún no se ha registrado dónde se quedó la última vez. Puedes usar el botón de "Registro de Predicación" para anotarlo.
+                {canRecordProgress
+                  ? 'Aún no se ha registrado dónde se quedó la última vez. Puedes usar el botón de "Registro de Predicación" para anotarlo.'
+                  : 'Aún no se ha registrado dónde se quedó la última vez. El hermano con el privilegio de dirigir la predicación anotará el avance.'}
               </p>
             )}
           </div>
@@ -204,10 +208,10 @@ export const TerritoryCardModal: React.FC<TerritoryCardModalProps> = ({
           <div className="flex items-center justify-between mb-1.5">
             <span className="font-semibold text-slate-800 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-slate-600" />
-              Mapa del Territorio (Google Maps con puntos y límites)
+              Mapa del Territorio (Google Maps)
             </span>
             <span className="text-[11px] text-slate-500 font-mono">
-              {polygonPoints.length} vértices puntuados
+              {polygonPoints.length} vértices perimetrales
             </span>
           </div>
 
@@ -216,22 +220,33 @@ export const TerritoryCardModal: React.FC<TerritoryCardModalProps> = ({
               territories={[territory]}
               places={places}
               selectedTerritoryId={territory.id}
-              kingdomHallLocation={
-                congregation.latitude && congregation.longitude
-                  ? { latitude: congregation.latitude, longitude: congregation.longitude }
-                  : undefined
-              }
               city={congregation.city}
               heightClassName="h-[340px]"
               autoFitBounds={true}
             />
           </div>
           <p className="text-[11px] text-slate-400 mt-1">
-            Cada punto azul representa un vértice marcado del territorio. Puedes hacer zoom o alternar a vista satelital arriba a la derecha.
+            Haz clic en la sección del mapa o en los puntos para ver detalles. Puedes hacer zoom o alternar a vista satelital arriba a la derecha.
           </p>
         </div>
 
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+          <div>
+            {canRecordProgress && onOpenProgressModal && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  onClose();
+                  onOpenProgressModal(territory);
+                }}
+                className="text-blue-700 border-blue-200 hover:bg-blue-50 text-xs"
+              >
+                <FileText className="w-3.5 h-3.5 mr-1" />
+                Registrar Avance
+              </Button>
+            )}
+          </div>
           <Button variant="outline" size="sm" onClick={onClose}>
             Cerrar Tarjeta
           </Button>

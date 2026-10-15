@@ -12,11 +12,14 @@ import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { AssignmentModal } from './AssignmentModal';
+import { getDayOfWeekName } from '../../lib/dateUtils';
 import { pdfGenerator } from '../../services/pdfGenerator';
+import { imageGenerator } from '../../services/imageGenerator';
 import {
   CalendarDays,
   Plus,
   FileDown,
+  Image as ImageIcon,
   Search,
   Filter,
   Edit2,
@@ -48,6 +51,7 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
 
   const [search, setSearch] = useState('');
   const [filterMonth, setFilterMonth] = useState('all');
+  const [filterActivityType, setFilterActivityType] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<WeeklyAssignment | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -64,16 +68,22 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
 
         if (!matchesSearch) return false;
 
-        if (filterMonth !== 'all') {
-          return item.date.startsWith(filterMonth);
+        if (filterMonth !== 'all' && !item.date.startsWith(filterMonth)) {
+          return false;
         }
+
+        if (filterActivityType !== 'all') {
+          const itemType = item.activityType || 'TERRITORIO';
+          if (itemType !== filterActivityType) return false;
+        }
+
         return true;
       })
       .sort((a, b) => {
         const cmp = a.date.localeCompare(b.date);
         return cmp !== 0 ? cmp : a.time.localeCompare(b.time);
       });
-  }, [assignments, search, filterMonth]);
+  }, [assignments, search, filterMonth, filterActivityType]);
 
   const handleOpenCreate = () => {
     setEditingItem(null);
@@ -122,6 +132,17 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
             Exportar PDF
           </Button>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              imageGenerator.generateWeeklyProgramImage(congregation, filteredAssignments)
+            }
+          >
+            <ImageIcon className="w-4 h-4 mr-1.5" />
+            Exportar Imagen
+          </Button>
+
           {canEdit && (
             <Button size="sm" onClick={handleOpenCreate}>
               <Plus className="w-4 h-4 mr-1.5" />
@@ -144,18 +165,37 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs text-slate-500 whitespace-nowrap">Filtrar mes:</span>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
-          >
-            <option value="all">Todos los meses</option>
-            <option value="2026-10">Octubre 2026</option>
-            <option value="2026-11">Noviembre 2026</option>
-            <option value="2026-12">Diciembre 2026</option>
-          </select>
+        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Modalidad:</span>
+            <select
+              value={filterActivityType}
+              onChange={(e) => setFilterActivityType(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+            >
+              <option value="all">Todas las modalidades</option>
+              <option value="TERRITORIO">Casa en casa (Territorio)</option>
+              <option value="RURAL">🌲 Predicación Rural</option>
+              <option value="CALLES">🚶 Por las calles</option>
+              <option value="ZOOM">💻 Por Zoom</option>
+              <option value="CARTAS">✉️ Cartas / Teléfono</option>
+              <option value="GIRA">🚐 Gira de Predicación</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 whitespace-nowrap">Mes:</span>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900 bg-white"
+            >
+              <option value="all">Todos los meses</option>
+              <option value="2026-10">Octubre 2026</option>
+              <option value="2026-11">Noviembre 2026</option>
+              <option value="2026-12">Diciembre 2026</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -178,10 +218,10 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-semibold text-slate-600">
-                  <th className="py-3 px-4">Fecha y Hora</th>
+                  <th className="py-3 px-4">Día / Fecha y Hora</th>
                   <th className="py-3 px-4">Lugar de Salida</th>
                   <th className="py-3 px-4">Encargado</th>
-                  <th className="py-3 px-4">Territorio</th>
+                  <th className="py-3 px-4">Modalidad / Territorio</th>
                   <th className="py-3 px-4">Notas</th>
                   {canEdit && <th className="py-3 px-4 text-right">Acciones</th>}
                 </tr>
@@ -193,21 +233,48 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
                     className="hover:bg-slate-50/50 transition-colors group"
                   >
                     <td className="py-3.5 px-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-slate-900 font-mono tabular-nums">
-                          {item.date}
-                        </span>
-                        <span className="text-slate-500 font-mono tabular-nums">
-                          {item.time}
-                        </span>
-                        {item.hasConflict && (
-                          <span
-                            title="Posible conflicto de horario detectado"
-                            className="text-amber-600"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5" />
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {getDayOfWeekName(item.date) || 'Salida'}
                           </span>
-                        )}
+                          {item.activityType === 'RURAL' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              🌲 Rural
+                            </span>
+                          )}
+                          {item.activityType === 'CALLES' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                              🚶 Calles
+                            </span>
+                          )}
+                          {item.activityType === 'ZOOM' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                              💻 Zoom
+                            </span>
+                          )}
+                          {item.activityType === 'CARTAS' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                              ✉️ Cartas
+                            </span>
+                          )}
+                          {item.activityType === 'GIRA' && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
+                              🚐 Gira
+                            </span>
+                          )}
+                          {item.hasConflict && (
+                            <span
+                              title="Posible conflicto de horario detectado"
+                              className="text-amber-600"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-mono tabular-nums">
+                          {item.date} · {item.time}
+                        </span>
                       </div>
                     </td>
 
@@ -220,20 +287,72 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
                     </td>
 
                     <td className="py-3.5 px-4 text-slate-600">
-                      {item.territoryNumber ? (
+                      {item.activityType === 'CALLES' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md font-medium">
+                          🚶 Sin tarjeta (Por las calles)
+                        </span>
+                      ) : item.activityType === 'ZOOM' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-sky-800 bg-sky-50 border border-sky-200 px-2 py-1 rounded-md font-medium">
+                          💻 Sin tarjeta (Reunión Zoom)
+                        </span>
+                      ) : item.activityType === 'CARTAS' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-purple-800 bg-purple-50 border border-purple-200 px-2 py-1 rounded-md font-medium">
+                          ✉️ Sin tarjeta (Cartas / Tel.)
+                        </span>
+                      ) : item.activityType === 'GIRA' ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-teal-800 bg-teal-50 border border-teal-200 px-2 py-1 rounded-md font-medium">
+                          🚐 Sin tarjeta (Gira de Predicación)
+                        </span>
+                      ) : item.activityType === 'RURAL' ? (
+                        <div>
+                          {item.territoryNumber ? (
+                            <>
+                              <span className="font-semibold text-emerald-950 block">
+                                Territorio Rural #{item.territoryNumber}
+                              </span>
+                              {(() => {
+                                const terr = territories.find(
+                                  (t) =>
+                                    t.id === item.territoryId ||
+                                    t.number === item.territoryNumber
+                                );
+                                if (!terr?.lastProgress) return null;
+                                return (
+                                  <div
+                                    className="text-[11px] text-emerald-700 font-medium truncate max-w-[220px]"
+                                    title={`Dónde quedó: ${terr.lastProgress}`}
+                                  >
+                                    📌 Quedó: {terr.lastProgress}
+                                  </div>
+                                );
+                              })()}
+                            </>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-md font-medium">
+                              🌲 Territorio Rural (General)
+                            </span>
+                          )}
+                        </div>
+                      ) : item.territoryNumber ? (
                         <div>
                           <span className="font-medium text-slate-800">
                             Territorio #{item.territoryNumber}
                           </span>
                           {(() => {
                             const terr = territories.find(
-                              (t) => t.id === item.territoryId || t.number === item.territoryNumber
+                              (t) =>
+                                t.id === item.territoryId ||
+                                t.number === item.territoryNumber
                             );
                             if (!terr?.lastProgress) return null;
                             return (
                               <div
                                 className="text-[11px] text-blue-700 font-medium truncate max-w-[220px]"
-                                title={`Dónde quedó: ${terr.lastProgress}${terr.lastProgressDate ? ` (${terr.lastProgressDate})` : ''}`}
+                                title={`Dónde quedó: ${terr.lastProgress}${
+                                  terr.lastProgressDate
+                                    ? ` (${terr.lastProgressDate})`
+                                    : ''
+                                }`}
                               >
                                 📌 Quedó: {terr.lastProgress}
                               </div>

@@ -8,7 +8,7 @@ import {
   PublicPreachingPlace,
 } from '../../types';
 import { useAuth } from '../../context/AuthContext';
-import { canManagePreachingOperations } from '../../services/securityRules';
+import { canManagePreachingOperations, canRecordPreachingProgress } from '../../services/securityRules';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
 import { TerritoryModal } from './TerritoryModal';
@@ -48,6 +48,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const canEdit = canManagePreachingOperations(currentUser?.role);
+  const canRecord = canRecordPreachingProgress(currentUser);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -138,11 +139,6 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
     };
     await onSaveTerritory(updated);
   };
-
-  const kingdomHallLocation =
-    congregation.latitude && congregation.longitude
-      ? { latitude: congregation.latitude, longitude: congregation.longitude }
-      : undefined;
 
   return (
     <div className="space-y-6">
@@ -242,7 +238,6 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
             publicPlaces={publicPlaces}
             selectedTerritoryId={selectedTerritoryId}
             onSelectTerritory={(id) => setSelectedTerritoryId(id)}
-            kingdomHallLocation={kingdomHallLocation}
             city={congregation.city}
           />
 
@@ -286,15 +281,17 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                       Ver tarjeta
                     </Button>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleOpenProgress(selected)}
-                      className="text-blue-700 border-blue-200 hover:bg-blue-50"
-                    >
-                      <FileText className="w-3.5 h-3.5 mr-1" />
-                      Registro de Predicación
-                    </Button>
+                    {canRecord && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleOpenProgress(selected)}
+                        className="text-blue-700 border-blue-200 hover:bg-blue-50"
+                      >
+                        <FileText className="w-3.5 h-3.5 mr-1" />
+                        Registro de Predicación
+                      </Button>
+                    )}
 
                     {canEdit && (
                       <Button size="sm" variant="outline" onClick={() => handleOpenEdit(selected)}>
@@ -402,17 +399,19 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                     Ver tarjeta
                   </Button>
 
-                  {/* Botón 2: Registro de Predicación (Donde se escribe dónde quedó y sirve para el programa) */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleOpenProgress(item)}
-                    className="flex-1 text-xs py-1 h-8 justify-center font-medium text-blue-700 border-blue-200 hover:bg-blue-50"
-                    title="Anotar dónde quedó el territorio para el programa de predicación"
-                  >
-                    <FileText className="w-3.5 h-3.5 mr-1" />
-                    Registro
-                  </Button>
+                  {/* Botón 2: Registro de Predicación (Solo para quienes tienen el privilegio de dirigir) */}
+                  {canRecord && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenProgress(item)}
+                      className="flex-1 text-xs py-1 h-8 justify-center font-medium text-blue-700 border-blue-200 hover:bg-blue-50"
+                      title="Anotar dónde quedó el territorio para el programa de predicación"
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      Registro
+                    </Button>
+                  )}
 
                   {canEdit && (
                     <button
@@ -475,7 +474,8 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
           territory={cardModalTerritory}
           congregation={congregation}
           places={places}
-          onOpenProgressModal={(t) => setProgressModalTerritory(t)}
+          canRecordProgress={canRecord}
+          onOpenProgressModal={canRecord ? (t) => setProgressModalTerritory(t) : undefined}
         />
       )}
 

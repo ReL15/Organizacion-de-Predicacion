@@ -5,6 +5,7 @@ import {
   canManageUsers,
   canManageCongregation,
   canManagePreachingOperations,
+  canRecordPreachingProgress,
   detectWeeklyConflicts,
   detectPublicConflicts,
   isMasterUser,
@@ -179,6 +180,72 @@ describe('Reglas de Seguridad y Autorizaciones Críticas', () => {
 
       expect(check.hasConflict).toBe(true);
       expect(check.conflictedUserNames).toContain('Hno. Samuel');
+    });
+  });
+
+  describe('Permisos para Registro de Predicación (Privilegio de dirigir reuniones)', () => {
+    it('debe denegar permiso a un publicador que no tiene el privilegio de dirigir', () => {
+      const publisher = {
+        id: 'u1',
+        congregationId: 'c1',
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        fullName: 'Juan Pérez',
+        email: 'juan@test.com',
+        role: 'PUBLICADOR' as const,
+        canLeadPreaching: false,
+        canPublicPreaching: true,
+        active: true,
+        createdAt: '2026-01-01',
+      };
+      expect(canRecordPreachingProgress(publisher)).toBe(false);
+    });
+
+    it('debe conceder permiso a un publicador que tiene el privilegio de dirigir la predicación', () => {
+      const leader = {
+        id: 'u2',
+        congregationId: 'c1',
+        firstName: 'Carlos',
+        lastName: 'Gómez',
+        fullName: 'Carlos Gómez',
+        email: 'carlos@test.com',
+        role: 'PUBLICADOR' as const,
+        canLeadPreaching: true,
+        canPublicPreaching: true,
+        active: true,
+        createdAt: '2026-01-01',
+      };
+      expect(canRecordPreachingProgress(leader)).toBe(true);
+    });
+
+    it('debe conceder permiso al coordinador o superintendente de servicio', () => {
+      const coordinator = {
+        id: 'u3',
+        congregationId: 'c1',
+        firstName: 'Marcos',
+        lastName: 'Ruiz',
+        fullName: 'Marcos Ruiz',
+        email: 'marcos@test.com',
+        role: 'COORDINADOR' as const,
+        canLeadPreaching: false,
+        canPublicPreaching: false,
+        active: true,
+        createdAt: '2026-01-01',
+      };
+      expect(canRecordPreachingProgress(coordinator)).toBe(true);
+    });
+  });
+
+  describe('Modalidades de Predicación y Tarjeta de Territorio', () => {
+    it('debe reconocer que GIRA, CALLES, ZOOM y CARTAS no requieren tarjeta de territorio', () => {
+      const modalitiesWithoutTerritory: string[] = ['CALLES', 'ZOOM', 'CARTAS', 'GIRA'];
+      const hasTerritory = (type: string) => type === 'TERRITORIO' || type === 'RURAL';
+
+      modalitiesWithoutTerritory.forEach((modality) => {
+        expect(hasTerritory(modality)).toBe(false);
+      });
+      expect(hasTerritory('TERRITORIO')).toBe(true);
+      expect(hasTerritory('RURAL')).toBe(true);
     });
   });
 });

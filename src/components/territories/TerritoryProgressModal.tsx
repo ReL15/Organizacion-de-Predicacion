@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Territory, TerritoryStatus, UserProfile } from '../../types';
+import { canRecordPreachingProgress } from '../../services/securityRules';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { MapPin, Calendar, User, FileText, CheckCircle2 } from 'lucide-react';
+import { MapPin, Calendar, User, FileText, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 interface TerritoryProgressModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const TerritoryProgressModal: React.FC<TerritoryProgressModalProps> = ({
   publishers,
   onSaveProgress,
 }) => {
+  const isAuthorized = canRecordPreachingProgress(currentUser);
   const [progress, setProgress] = useState(territory.lastProgress || '');
   const [date, setDate] = useState(
     new Date().toISOString().split('T')[0]
@@ -58,6 +60,13 @@ export const TerritoryProgressModal: React.FC<TerritoryProgressModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+
+    if (!isAuthorized) {
+      setErrorMessage(
+        'Acceso restringido: Solo los hermanos que tienen el privilegio de dirigir la predicación o superintendentes pueden realizar registros de territorio.'
+      );
+      return;
+    }
 
     if (!progress.trim()) {
       setErrorMessage('Por favor especifica dónde quedó el territorio (calle, manzana o casa).');
@@ -98,6 +107,15 @@ export const TerritoryProgressModal: React.FC<TerritoryProgressModalProps> = ({
         {errorMessage && (
           <div className="p-3 text-xs bg-rose-50 text-rose-700 rounded-lg border border-rose-200">
             {errorMessage}
+          </div>
+        )}
+
+        {!isAuthorized && (
+          <div className="p-3 text-xs bg-amber-50 text-amber-800 rounded-lg border border-amber-200 flex items-start gap-2">
+            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div>
+              <b>Acceso restringido:</b> Solo los hermanos con el privilegio de dirigir la predicación o superintendentes pueden guardar registros de territorio.
+            </div>
           </div>
         )}
 
@@ -205,7 +223,7 @@ export const TerritoryProgressModal: React.FC<TerritoryProgressModalProps> = ({
           <Button variant="outline" size="sm" type="button" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button size="sm" type="submit" isLoading={isSubmitting}>
+          <Button size="sm" type="submit" isLoading={isSubmitting} disabled={isSubmitting || !isAuthorized}>
             <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
             Guardar Registro
           </Button>

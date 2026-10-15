@@ -14,6 +14,7 @@ import {
   Share2,
   Map,
   FileDown,
+  Image as ImageIcon,
   Plus,
   ArrowRight,
   Clock,
@@ -21,6 +22,8 @@ import {
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { pdfGenerator } from '../../services/pdfGenerator';
+import { imageGenerator } from '../../services/imageGenerator';
+import { getDayOfWeekName } from '../../lib/dateUtils';
 
 interface DashboardHomeProps {
   congregation: Congregation;
@@ -126,6 +129,16 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
             <FileDown className="w-4 h-4 mr-1.5" />
             Descargar Programa PDF
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              imageGenerator.generateWeeklyProgramImage(congregation, weeklyAssignments)
+            }
+          >
+            <ImageIcon className="w-4 h-4 mr-1.5" />
+            Exportar Imagen
+          </Button>
           {currentUser?.role !== 'PUBLICADOR' && (
             <Button size="sm" onClick={onNewWeeklyAssignment}>
               <Plus className="w-4 h-4 mr-1.5" />
@@ -161,20 +174,67 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                 className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 flex flex-col justify-between"
               >
                 <div>
-                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
-                    <span className="font-semibold text-slate-800">
-                      Dirigir Grupo de Predicación
-                    </span>
-                    <span className="font-mono tabular-nums">
+                  <div className="flex items-center justify-between text-xs text-slate-500 mb-1 flex-wrap gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-semibold text-slate-800">
+                        {getDayOfWeekName(item.date) || 'Salida de Predicación'}
+                      </span>
+                      {item.activityType === 'RURAL' && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          🌲 Rural
+                        </span>
+                      )}
+                      {item.activityType === 'CALLES' && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                          🚶 Calles
+                        </span>
+                      )}
+                      {item.activityType === 'ZOOM' && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-300">
+                          💻 Zoom
+                        </span>
+                      )}
+                      {item.activityType === 'CARTAS' && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 border border-purple-300">
+                          ✉️ Cartas
+                        </span>
+                      )}
+                      {item.activityType === 'GIRA' && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-teal-100 text-teal-800 border border-teal-300">
+                          🚐 Gira
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-mono tabular-nums text-[11px]">
                       {item.date} · {item.time}
                     </span>
                   </div>
                   <h3 className="text-sm font-semibold text-slate-900">{item.placeName}</h3>
-                  {item.territoryNumber && (
+                  {item.activityType === 'CALLES' ? (
+                    <span className="text-xs text-amber-800 mt-1 block font-medium">
+                      🚶 Sin tarjeta (Predicación por las calles)
+                    </span>
+                  ) : item.activityType === 'ZOOM' ? (
+                    <span className="text-xs text-sky-800 mt-1 block font-medium">
+                      💻 Sin tarjeta (Predicación por Zoom)
+                    </span>
+                  ) : item.activityType === 'CARTAS' ? (
+                    <span className="text-xs text-purple-800 mt-1 block font-medium">
+                      ✉️ Sin tarjeta (Cartas y Teléfono)
+                    </span>
+                  ) : item.activityType === 'GIRA' ? (
+                    <span className="text-xs text-teal-800 mt-1 block font-medium">
+                      🚐 Sin tarjeta (Gira de Predicación)
+                    </span>
+                  ) : item.activityType === 'RURAL' ? (
+                    <span className="text-xs text-emerald-900 mt-1 block font-medium">
+                      🌲 {item.territoryNumber ? `Territorio Rural #${item.territoryNumber}` : 'Salida Rural General'}
+                    </span>
+                  ) : item.territoryNumber ? (
                     <span className="text-xs text-slate-600 mt-1 block">
                       Territorio #{item.territoryNumber}
                     </span>
-                  )}
+                  ) : null}
                   {item.notes && (
                     <p className="text-xs text-slate-500 mt-1 italic">{item.notes}</p>
                   )}
@@ -313,6 +373,12 @@ export const DashboardHome: React.FC<DashboardHomeProps> = ({
                         <>
                           <span aria-hidden="true">·</span>
                           <span>Territorio #{item.territoryNumber}</span>
+                        </>
+                      )}
+                      {item.activityType === 'GIRA' && (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="text-teal-700 font-medium">🚐 Gira</span>
                         </>
                       )}
                     </div>

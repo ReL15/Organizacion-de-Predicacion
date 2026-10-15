@@ -765,6 +765,7 @@ export async function getWeeklyAssignmentsList(congregationId: string): Promise<
       congregationId: r.congregationId,
       date: r.date,
       time: r.time,
+      activityType: (r.activityType as any) || 'TERRITORIO',
       placeId: r.placeId,
       placeName: r.placeName,
       leaderId: r.leaderId,
@@ -791,6 +792,7 @@ export async function createWeeklyAssignmentRecord(data: WeeklyAssignment): Prom
         congregationId: data.congregationId,
         date: data.date,
         time: data.time,
+        activityType: data.activityType || 'TERRITORIO',
         placeId: data.placeId,
         placeName: data.placeName,
         leaderId: data.leaderId,
@@ -808,6 +810,7 @@ export async function createWeeklyAssignmentRecord(data: WeeklyAssignment): Prom
       congregationId: inserted.congregationId,
       date: inserted.date,
       time: inserted.time,
+      activityType: (inserted.activityType as any) || 'TERRITORIO',
       placeId: inserted.placeId,
       placeName: inserted.placeName,
       leaderId: inserted.leaderId,
@@ -830,20 +833,22 @@ export async function updateWeeklyAssignmentRecord(
   data: Partial<WeeklyAssignment>
 ): Promise<WeeklyAssignment> {
   try {
+    const updatePayload: any = {};
+    if (data.date !== undefined) updatePayload.date = data.date;
+    if (data.time !== undefined) updatePayload.time = data.time;
+    if (data.activityType !== undefined) updatePayload.activityType = data.activityType;
+    if (data.placeId !== undefined) updatePayload.placeId = data.placeId;
+    if (data.placeName !== undefined) updatePayload.placeName = data.placeName;
+    if (data.leaderId !== undefined) updatePayload.leaderId = data.leaderId;
+    if (data.leaderName !== undefined) updatePayload.leaderName = data.leaderName;
+    if (data.territoryId !== undefined) updatePayload.territoryId = data.territoryId;
+    if (data.territoryNumber !== undefined) updatePayload.territoryNumber = data.territoryNumber;
+    if (data.notes !== undefined) updatePayload.notes = data.notes;
+    if (data.hasConflict !== undefined) updatePayload.hasConflict = data.hasConflict;
+
     const [updated] = await db
       .update(weeklyAssignments)
-      .set({
-        date: data.date,
-        time: data.time,
-        placeId: data.placeId,
-        placeName: data.placeName,
-        leaderId: data.leaderId,
-        leaderName: data.leaderName,
-        territoryId: data.territoryId,
-        territoryNumber: data.territoryNumber,
-        notes: data.notes,
-        hasConflict: data.hasConflict,
-      })
+      .set(updatePayload)
       .where(eq(weeklyAssignments.id, id))
       .returning();
 
@@ -852,6 +857,7 @@ export async function updateWeeklyAssignmentRecord(
       congregationId: updated.congregationId,
       date: updated.date,
       time: updated.time,
+      activityType: (updated.activityType as any) || 'TERRITORIO',
       placeId: updated.placeId,
       placeName: updated.placeName,
       leaderId: updated.leaderId,

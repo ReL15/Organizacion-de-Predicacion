@@ -169,3 +169,18 @@ export function detectPublicConflicts(
     conflictedUserNames,
   };
 }
+
+/**
+ * Verifica si un usuario tiene permiso para hacer registro de predicación en un territorio
+ * Regla de negocio: Los publicadores estándar no pueden hacer registro;
+ * solo quienes tienen el privilegio de dirigir la predicación (canLeadPreaching: true),
+ * los superintendentes/coordinadores o el usuario maestro.
+ */
+export function canRecordPreachingProgress(user?: UserProfile | null): boolean {
+  if (!user) return false;
+  return (
+    canManagePreachingOperations(user.role) ||
+    Boolean(user.canLeadPreaching) ||
+    Boolean(user.isMasterAdmin)
+  );
+}
