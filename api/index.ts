@@ -21,7 +21,10 @@ export default async function handler(req: Request, res: Response) {
   } catch (error) {
     console.error('No se pudo inicializar la API de Vercel:', error);
     return res.status(503).json({
-      error: 'La API no pudo iniciar. Verifica DATABASE_URL o POSTGRES_URL en las variables de entorno de Vercel y revisa los logs de la función.',
+      error:
+        process.env.DATABASE_URL || process.env.POSTGRES_URL
+          ? 'La API no pudo iniciar. Verifica la conexión PostgreSQL y los logs de la función en Vercel.'
+          : 'Falta DATABASE_URL o POSTGRES_URL en las variables de entorno del proyecto Vercel.',
     });
   }
 }

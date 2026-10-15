@@ -1,14 +1,12 @@
 /**
  * Contexto de Autenticación y Perfil de Usuario
- * Conectado a Firebase Authentication (Google Sign-In) y persistencia en base de datos PostgreSQL.
+ * Conectado a Firebase Authentication (correo y contraseña) y PostgreSQL.
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, UserRole, Congregation } from '../types';
 import {
   auth,
-  googleAuthProvider,
-  signInWithPopup,
   firebaseSignOut,
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -38,7 +36,6 @@ interface AuthContextType {
   refreshCongregations: () => Promise<void>;
   loginWithEmail: (email: string, pass: string) => Promise<void>;
   registerWithEmail: (email: string, pass: string, name: string) => Promise<void>;
-  loginWithGoogle: () => Promise<void>;
   requestPasswordRecovery: (email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -137,37 +134,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const loginWithGoogle = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const result = await signInWithPopup(auth, googleAuthProvider);
-      if (result.user.email) {
-        const profile = await apiService.syncAuthUser({
-          uid: result.user.uid,
-          email: result.user.email,
-          displayName: result.user.displayName || undefined,
-        });
-        setCurrentUser(profile);
-        setIsBootstrapAdmin(Boolean(profile.isMasterAdmin));
-        setHasCongregation(Boolean(profile.congregationId));
-
-        const congId = getActiveCongregationId() || profile.congregationId;
-        if (congId) {
-          setActiveCongIdState(congId);
-          setActiveCongregationId(congId);
-        }
-        await refreshCongregations();
-      }
-    } catch (err: any) {
-      console.error('Error al iniciar sesión con Google:', err);
-      setError(err.message || 'Error durante la autenticación con Google');
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const loginWithEmail = async (email: string, pass: string) => {
     setIsLoading(true);
     setError(null);
@@ -223,7 +189,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (!user.providerData.some((provider) => provider.providerId === 'password')) {
       throw new Error(
-        'Esta cuenta no tiene una contraseña de correo. Usa el acceso con Google o solicita un enlace de recuperación si ya habías configurado una.'
+        'Esta cuenta no tiene habilitado el acceso con correo y contraseña. Usa la recuperación de contraseña o contacta al administrador.'
       );
     }
 
@@ -263,7 +229,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshCongregations,
         loginWithEmail,
         registerWithEmail,
-        loginWithGoogle,
         requestPasswordRecovery,
         changePassword,
         logout,
