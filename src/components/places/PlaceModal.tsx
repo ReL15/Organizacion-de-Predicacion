@@ -19,14 +19,14 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
   initialData,
   city,
 }) => {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [name, setName] = useState(initialData?.name || '');
+  const [address, setAddress] = useState(initialData?.address || '');
   const [coordinates, setCoordinates] = useState<GeoPoint>({
-    latitude: 0,
-    longitude: 0,
+    latitude: initialData?.latitude || 0,
+    longitude: initialData?.longitude || 0,
   });
-  const [description, setDescription] = useState('');
-  const [active, setActive] = useState(true);
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [active, setActive] = useState(initialData?.active ?? true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -139,6 +139,7 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
           onChange={setCoordinates}
           label="Ubicación geográfica en el mapa"
           city={city}
+          markerColor="#1e3a8a"
         />
 
         <div>

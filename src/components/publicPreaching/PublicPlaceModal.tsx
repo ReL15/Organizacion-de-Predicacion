@@ -29,14 +29,17 @@ export const PublicPlaceModal: React.FC<PublicPlaceModalProps> = ({
   initialData,
   city,
 }) => {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [coordinates, setCoordinates] = useState<GeoPoint>({ latitude: 0, longitude: 0 });
-  const [day, setDay] = useState<PublicPreachingPlace['day']>('Sábado');
-  const [time, setTime] = useState('09:00');
-  const [duration, setDuration] = useState(60);
-  const [description, setDescription] = useState('');
-  const [active, setActive] = useState(true);
+  const [name, setName] = useState(initialData?.name || '');
+  const [address, setAddress] = useState(initialData?.address || '');
+  const [coordinates, setCoordinates] = useState<GeoPoint>({
+    latitude: initialData?.latitude || 0,
+    longitude: initialData?.longitude || 0,
+  });
+  const [day, setDay] = useState<PublicPreachingPlace['day']>(initialData?.day || 'Sábado');
+  const [time, setTime] = useState(initialData?.time || '09:00');
+  const [duration, setDuration] = useState(initialData?.duration || 60);
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [active, setActive] = useState(initialData?.active ?? true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -171,6 +174,7 @@ export const PublicPlaceModal: React.FC<PublicPlaceModalProps> = ({
           onChange={setCoordinates}
           city={city}
           label="Ubicación GPS"
+          markerColor="#7e22ce"
         />
 
         <label className="block text-xs font-medium text-slate-700">

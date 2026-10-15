@@ -1,14 +1,16 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { GeoPoint } from '../../types';
 import { geocodeCity } from '../../lib/googleGeocoding';
+import { Crosshair } from 'lucide-react';
 
 interface CoordinatePickerMapProps {
   value: GeoPoint;
   onChange: (point: GeoPoint) => void;
   label?: string;
   city?: string;
+  markerColor?: string; // Color personalizado para el marcador (ej: #1e3a8a o #7e22ce)
 }
 
 export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
@@ -16,12 +18,14 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
   onChange,
   label = 'Selecciona la ubicación en el mapa haciendo clic',
   city,
+  markerColor = '#1e3a8a',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const onChangeRef = useRef(onChange);
+  const isUserInteractingRef = useRef(false);
 
   const [mapType, setMapType] = useState<'streets' | 'hybrid'>('streets');
   const [mapError, setMapError] = useState('');
@@ -31,13 +35,55 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // Función para crear el icono con el color configurado
+  const createMarkerIcon = useCallback((color: string) => {
+    return L.divIcon({
+      className: '',
+      html: `<span style="display:block;width:22px;height:22px;border:3px solid white;border-radius:50%;background:${color};box-shadow:0 3px 8px rgba(0,0,0,0.45);cursor:grab;"></span>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11],
+    });
+  }, []);
+
+  // Función para centrar manualmente en la ubicación del marcador
+  const handleCenterOnLocation = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const hasCoords =
+      Number.isFinite(value.latitude) &&
+      Number.isFinite(value.longitude) &&
+      (value.latitude !== 0 || value.longitude !== 0);
+
+    if (hasCoords) {
+      map.setView([value.latitude, value.longitude], 16, { animate: true });
+      map.invalidateSize();
+    } else if (city?.trim()) {
+      void geocodeCity(city).then((center) => {
+        if (center && mapRef.current) {
+          mapRef.current.setView([center.latitude, center.longitude], 15, { animate: true });
+          mapRef.current.invalidateSize();
+        }
+      });
+    }
+  };
+
+  // Inicialización del mapa
   useEffect(() => {
     if (!containerRef.current) return;
     let cancelled = false;
-    const hasValue = value.latitude !== 0 || value.longitude !== 0;
+
+    const hasCoords =
+      Number.isFinite(value.latitude) &&
+      Number.isFinite(value.longitude) &&
+      (value.latitude !== 0 || value.longitude !== 0);
+
+    const initialCenter: [number, number] = hasCoords
+      ? [value.latitude, value.longitude]
+      : [13.674, -89.284];
+
     const map = L.map(containerRef.current, {
-      center: hasValue ? [value.latitude, value.longitude] : [13.674, -89.284],
-      zoom: 15,
+      center: initialCenter,
+      zoom: hasCoords ? 16 : 14,
       zoomControl: true,
       attributionControl: false,
     });
@@ -53,46 +99,59 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
 
     tileLayerRef.current = googleLayer;
 
-    const marker = L.marker(
-      hasValue ? [value.latitude, value.longitude] : [13.674, -89.284],
-      {
-        draggable: true,
-        icon: L.divIcon({
-          className: '',
-          html: '<span style="display:block;width:20px;height:20px;border:3px solid white;border-radius:50%;background:#2563eb;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></span>',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
-        }),
-      }
-    );
+    const marker = L.marker(initialCenter, {
+      draggable: true,
+      icon: createMarkerIcon(markerColor),
+    });
 
-    if (hasValue) marker.addTo(map);
+    if (hasCoords) {
+      marker.addTo(map);
+    }
+
+    marker.on('dragstart', () => {
+      isUserInteractingRef.current = true;
+    });
 
     marker.on('dragend', () => {
       const position = marker.getLatLng();
+      const newLat = Number(position.lat.toFixed(6));
+      const newLng = Number(position.lng.toFixed(6));
       onChangeRef.current({
-        latitude: Number(position.lat.toFixed(6)),
-        longitude: Number(position.lng.toFixed(6)),
+        latitude: newLat,
+        longitude: newLng,
       });
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 100);
     });
 
     map.on('click', (event: L.LeafletMouseEvent) => {
-      marker.setLatLng(event.latlng).addTo(map);
+      isUserInteractingRef.current = true;
+      marker.setLatLng(event.latlng);
+      if (!map.hasLayer(marker)) {
+        marker.addTo(map);
+      }
+      const newLat = Number(event.latlng.lat.toFixed(6));
+      const newLng = Number(event.latlng.lng.toFixed(6));
       onChangeRef.current({
-        latitude: Number(event.latlng.lat.toFixed(6)),
-        longitude: Number(event.latlng.lng.toFixed(6)),
+        latitude: newLat,
+        longitude: newLng,
       });
+      setTimeout(() => {
+        isUserInteractingRef.current = false;
+      }, 100);
     });
 
     mapRef.current = map;
     markerRef.current = marker;
 
-    if (!hasValue && city?.trim()) {
+    // Si NO tiene coordenadas iniciales y hay una ciudad configurada, buscar centro de la ciudad
+    if (!hasCoords && city?.trim()) {
       void geocodeCity(city)
         .then((center) => {
-          if (cancelled || !center) return;
-          map.setView([center.latitude, center.longitude], 15);
-          marker.setLatLng([center.latitude, center.longitude]).addTo(map);
+          if (cancelled || !center || !mapRef.current || !markerRef.current) return;
+          mapRef.current.setView([center.latitude, center.longitude], 15);
+          markerRef.current.setLatLng([center.latitude, center.longitude]).addTo(mapRef.current);
           onChangeRef.current({
             latitude: Number(center.latitude.toFixed(6)),
             longitude: Number(center.longitude.toFixed(6)),
@@ -105,14 +164,91 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
         });
     }
 
+    // Leaflet en modales: Forzar recalculación de dimensiones para evitar tiles grises o descentradas
+    const timer1 = setTimeout(() => {
+      if (!cancelled && mapRef.current) {
+        mapRef.current.invalidateSize();
+        if (hasCoords) {
+          mapRef.current.setView([value.latitude, value.longitude], 16);
+        }
+      }
+    }, 60);
+
+    const timer2 = setTimeout(() => {
+      if (!cancelled && mapRef.current) {
+        mapRef.current.invalidateSize();
+        if (hasCoords) {
+          mapRef.current.setView([value.latitude, value.longitude], 16);
+        }
+      }
+    }, 200);
+
+    const timer3 = setTimeout(() => {
+      if (!cancelled && mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    }, 450);
+
+    // ResizeObserver para mantener el mapa siempre adaptado al contenedor del modal
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      });
+      resizeObserver.observe(containerRef.current);
+    }
+
     return () => {
       cancelled = true;
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      if (resizeObserver) resizeObserver.disconnect();
       map.remove();
       mapRef.current = null;
       tileLayerRef.current = null;
       markerRef.current = null;
     };
-  }, [city]);
+  }, [city, markerColor]);
+
+  // Actualizar icono cuando cambia el color
+  useEffect(() => {
+    if (markerRef.current) {
+      markerRef.current.setIcon(createMarkerIcon(markerColor));
+    }
+  }, [markerColor, createMarkerIcon]);
+
+  // Sincronizar posición del marcador y enfocar el mapa cuando cambian las coordenadas
+  useEffect(() => {
+    const map = mapRef.current;
+    const marker = markerRef.current;
+    if (!map || !marker) return;
+
+    const hasCoords =
+      Number.isFinite(value.latitude) &&
+      Number.isFinite(value.longitude) &&
+      (value.latitude !== 0 || value.longitude !== 0);
+
+    if (!hasCoords) return;
+
+    marker.setLatLng([value.latitude, value.longitude]);
+    if (!map.hasLayer(marker)) {
+      marker.addTo(map);
+    }
+
+    // Si el cambio no proviene de arrastre interactivo del usuario, centrar la vista en el punto
+    if (!isUserInteractingRef.current) {
+      const currentCenter = map.getCenter();
+      const distance = currentCenter.distanceTo([value.latitude, value.longitude]);
+      // Si la distancia al centro es mayor a 25 metros, reposicionar la cámara del mapa
+      if (distance > 25) {
+        map.setView([value.latitude, value.longitude], map.getZoom() || 16);
+      }
+      map.invalidateSize();
+    }
+  }, [value.latitude, value.longitude]);
 
   // Cambiar entre Calles y Satélite
   useEffect(() => {
@@ -138,14 +274,6 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
     tileLayerRef.current = newLayer;
   }, [mapType]);
 
-  useEffect(() => {
-    if (!markerRef.current || (value.latitude === 0 && value.longitude === 0)) return;
-    markerRef.current.setLatLng([value.latitude, value.longitude]);
-    if (mapRef.current && !mapRef.current.hasLayer(markerRef.current)) {
-      markerRef.current.addTo(mapRef.current);
-    }
-  }, [value]);
-
   const updateCoordinate = (coordinate: 'latitude' | 'longitude', rawValue: string) => {
     const parsed = Number(rawValue);
     const limit = coordinate === 'latitude' ? 90 : 180;
@@ -162,19 +290,51 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
     const point = { ...value, [coordinate]: parsed };
     onChange(point);
     if (mapRef.current && markerRef.current) {
-      markerRef.current.setLatLng([point.latitude, point.longitude]).addTo(mapRef.current);
+      markerRef.current.setLatLng([point.latitude, point.longitude]);
+      if (!mapRef.current.hasLayer(markerRef.current)) {
+        markerRef.current.addTo(mapRef.current);
+      }
       mapRef.current.panTo([point.latitude, point.longitude]);
     }
   };
 
+  const hasValidPosition =
+    Number.isFinite(value.latitude) &&
+    Number.isFinite(value.longitude) &&
+    (value.latitude !== 0 || value.longitude !== 0);
+
   return (
     <div className="space-y-1.5">
-      <span className="text-xs text-slate-500">
-        {label}. Haz clic sobre Google Maps, arrastra el marcador o escribe las coordenadas GPS.
-      </span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-slate-600 font-medium">{label}</span>
+        {hasValidPosition && (
+          <button
+            type="button"
+            onClick={handleCenterOnLocation}
+            className="text-[11px] text-blue-700 hover:text-blue-900 font-medium inline-flex items-center gap-1 hover:underline"
+            title="Centrar mapa en las coordenadas actuales"
+          >
+            <Crosshair className="w-3.5 h-3.5" />
+            Centrar en punto
+          </button>
+        )}
+      </div>
 
-      <div className="relative w-full h-52 rounded-lg overflow-hidden border border-slate-200">
+      <div className="relative w-full h-56 rounded-lg overflow-hidden border border-slate-200 shadow-inner">
         <div ref={containerRef} className="w-full h-full" />
+
+        {/* Botón flotante para centrar en el marcador */}
+        {hasValidPosition && (
+          <button
+            type="button"
+            onClick={handleCenterOnLocation}
+            className="absolute bottom-2 left-2 z-[1000] flex items-center gap-1 bg-white/95 hover:bg-white text-slate-800 px-2 py-1 rounded-md border border-slate-300 shadow-md text-[11px] font-semibold transition-all hover:scale-105"
+            title="Centrar vista en el punto seleccionado"
+          >
+            <Crosshair className="w-3.5 h-3.5 text-blue-600" />
+            <span>Enfocar Punto</span>
+          </button>
+        )}
 
         {/* Selector de capa Calles / Satélite */}
         <div className="absolute top-2 right-2 z-[1000] flex items-center gap-1 bg-white/95 p-1 rounded-md border border-slate-200 shadow-xs">
@@ -212,13 +372,17 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
         </div>
       </div>
 
+      <p className="text-[11px] text-slate-500">
+        Haz clic sobre Google Maps, arrastra el marcador o ajusta las coordenadas abajo.
+      </p>
+
       {mapError && (
-        <p className="text-[11px] text-amber-700">
+        <p className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200">
           {mapError} Puedes ingresar las coordenadas manualmente.
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 pt-1">
         <label className="text-[11px] text-slate-600">
           Latitud GPS
           <input
@@ -228,7 +392,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
             max="90"
             value={value.latitude === 0 && value.longitude === 0 ? '' : value.latitude}
             onChange={(event) => updateCoordinate('latitude', event.target.value)}
-            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs"
+            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs focus:ring-2 focus:ring-slate-900 focus:outline-none"
             required
           />
         </label>
@@ -241,7 +405,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
             max="180"
             value={value.latitude === 0 && value.longitude === 0 ? '' : value.longitude}
             onChange={(event) => updateCoordinate('longitude', event.target.value)}
-            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs"
+            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs focus:ring-2 focus:ring-slate-900 focus:outline-none"
             required
           />
         </label>
