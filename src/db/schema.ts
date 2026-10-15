@@ -14,6 +14,9 @@ export const congregations = pgTable('congregations', {
   name: text('name').notNull(),
   circuit: text('circuit'),
   city: text('city'),
+  address: text('address'), // Dirección física del Salón del Reino
+  latitude: doublePrecision('latitude'), // Latitud GPS del Salón del Reino
+  longitude: doublePrecision('longitude'), // Longitud GPS del Salón del Reino
   logoUrl: text('logo_url'),
   timezone: text('timezone').notNull().default('America/El_Salvador'),
   createdAt: timestamp('created_at').defaultNow(),
@@ -66,6 +69,9 @@ export const territories = pgTable('territories', {
   lastAssignedToId: text('last_assigned_to_id'),
   lastAssignedToName: text('last_assigned_to_name'),
   lastCompletedDate: text('last_completed_date'),
+  lastProgress: text('last_progress'), // Dónde quedó el territorio
+  lastProgressDate: text('last_progress_date'), // Fecha del último registro
+  lastProgressPublisher: text('last_progress_publisher'), // Quien reportó el avance
   createdAt: timestamp('created_at').defaultNow(),
 });
 

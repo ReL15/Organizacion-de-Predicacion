@@ -28,7 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={() => onSelectTab('inicio')}
           className="text-base font-bold tracking-tight text-slate-900 whitespace-nowrap shrink-0 hover:text-slate-700 transition-colors"
         >
-          Organizador de la Predicación
+          Programa de Predicación
         </button>
 
         {/* Zona 2: Enlaces limpios para escritorio */}

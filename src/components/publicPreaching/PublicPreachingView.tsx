@@ -295,12 +295,12 @@ export const PublicPreachingView: React.FC<PublicPreachingViewProps> = ({
                   <div>Hora: {place.time} ({place.duration} min)</div>
                 </div>
                 <a
-                  href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=17/${place.latitude}/${place.longitude}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center mt-2 text-[11px] text-sky-700 hover:underline"
+                  className="inline-flex items-center mt-2 text-[11px] text-blue-700 hover:underline font-medium"
                 >
-                  Ver ubicación GPS en OpenStreetMap
+                  Ver ubicación en Google Maps
                 </a>
 
                 {place.description && (

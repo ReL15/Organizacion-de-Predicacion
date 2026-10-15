@@ -133,7 +133,7 @@ export const PlaceModal: React.FC<PlaceModalProps> = ({
           />
         </div>
 
-        {/* Selector GPS sobre OpenStreetMap */}
+        {/* Selector GPS sobre Google Maps */}
         <CoordinatePickerMap
           value={coordinates}
           onChange={setCoordinates}

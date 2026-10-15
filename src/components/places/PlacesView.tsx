@@ -137,12 +137,12 @@ export const PlacesView: React.FC<PlacesViewProps> = ({ places, onSavePlace, cit
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
                 <a
-                  href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=17/${place.latitude}/${place.longitude}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${place.latitude},${place.longitude}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 hover:underline text-[11px]"
+                  className="inline-flex items-center gap-1 text-blue-700 hover:text-blue-900 hover:underline text-[11px] font-medium"
                 >
-                  Ver en mapa
+                  Ver en Google Maps
                   <ExternalLink className="w-3 h-3" />
                 </a>
 

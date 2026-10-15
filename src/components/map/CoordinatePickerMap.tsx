@@ -19,8 +19,11 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const onChangeRef = useRef(onChange);
+
+  const [mapType, setMapType] = useState<'streets' | 'hybrid'>('streets');
   const [mapError, setMapError] = useState('');
   const [coordinateError, setCoordinateError] = useState('');
 
@@ -34,25 +37,36 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
     const hasValue = value.latitude !== 0 || value.longitude !== 0;
     const map = L.map(containerRef.current, {
       center: hasValue ? [value.latitude, value.longitude] : [13.674, -89.284],
-      zoom: 14,
+      zoom: 15,
+      zoomControl: true,
     });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(map);
+
+    const googleLayer = L.tileLayer(
+      'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+      {
+        attribution: '&copy; Google Maps',
+        maxZoom: 20,
+        subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      }
+    ).addTo(map);
+
+    tileLayerRef.current = googleLayer;
+
     const marker = L.marker(
       hasValue ? [value.latitude, value.longitude] : [13.674, -89.284],
       {
         draggable: true,
         icon: L.divIcon({
           className: '',
-          html: '<span style="display:block;width:18px;height:18px;border:3px solid white;border-radius:50%;background:#2563eb;box-shadow:0 1px 5px #334155"></span>',
-          iconSize: [18, 18],
-          iconAnchor: [9, 9],
+          html: '<span style="display:block;width:20px;height:20px;border:3px solid white;border-radius:50%;background:#2563eb;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></span>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
         }),
       }
     );
+
     if (hasValue) marker.addTo(map);
+
     marker.on('dragend', () => {
       const position = marker.getLatLng();
       onChangeRef.current({
@@ -60,6 +74,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
         longitude: Number(position.lng.toFixed(6)),
       });
     });
+
     map.on('click', (event: L.LeafletMouseEvent) => {
       marker.setLatLng(event.latlng).addTo(map);
       onChangeRef.current({
@@ -67,6 +82,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
         longitude: Number(event.latlng.lng.toFixed(6)),
       });
     });
+
     mapRef.current = map;
     markerRef.current = marker;
 
@@ -74,7 +90,7 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
       void geocodeCity(city)
         .then((center) => {
           if (cancelled || !center) return;
-          map.setView([center.latitude, center.longitude], 14);
+          map.setView([center.latitude, center.longitude], 15);
           marker.setLatLng([center.latitude, center.longitude]).addTo(map);
           onChangeRef.current({
             latitude: Number(center.latitude.toFixed(6)),
@@ -92,9 +108,34 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
       cancelled = true;
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
       markerRef.current = null;
     };
   }, [city]);
+
+  // Cambiar entre Calles y Satélite
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+
+    const tileUrl =
+      mapType === 'hybrid'
+        ? 'https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}'
+        : 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+
+    const newLayer = L.tileLayer(tileUrl, {
+      maxZoom: 20,
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      attribution: '&copy; Google Maps',
+    });
+
+    newLayer.addTo(map);
+    tileLayerRef.current = newLayer;
+  }, [mapType]);
 
   useEffect(() => {
     if (!markerRef.current || (value.latitude === 0 && value.longitude === 0)) return;
@@ -128,23 +169,49 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
   return (
     <div className="space-y-1.5">
       <span className="text-xs text-slate-500">
-        {label}. Haz clic, arrastra el marcador o escribe las coordenadas GPS.
+        {label}. Haz clic sobre Google Maps, arrastra el marcador o escribe las coordenadas GPS.
       </span>
-      <div className="relative w-full h-48 rounded-lg overflow-hidden border border-slate-200">
+
+      <div className="relative w-full h-52 rounded-lg overflow-hidden border border-slate-200">
         <div ref={containerRef} className="w-full h-full" />
-        <a
-          href="https://www.openstreetmap.org/copyright"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="absolute bottom-1 right-1 z-[1000] rounded bg-white/90 px-1 text-[10px] text-slate-600"
-        >
-          © OpenStreetMap
-        </a>
+
+        {/* Selector de capa Calles / Satélite */}
+        <div className="absolute top-2 right-2 z-[1000] flex items-center gap-1 bg-white/95 p-1 rounded-md border border-slate-200 shadow-xs">
+          <button
+            type="button"
+            onClick={() => setMapType('streets')}
+            className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+              mapType === 'streets' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Calles
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapType('hybrid')}
+            className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+              mapType === 'hybrid' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Satélite
+          </button>
+        </div>
+
+        {/* Marca de Google Maps */}
+        <div className="absolute bottom-1 right-1 z-[1000] rounded bg-white/90 px-1.5 py-0.5 text-[10px] text-slate-700 font-semibold shadow-xs">
+          Google Maps
+        </div>
       </div>
-      {mapError && <p className="text-[11px] text-amber-700">{mapError} Puedes ingresar las coordenadas manualmente.</p>}
+
+      {mapError && (
+        <p className="text-[11px] text-amber-700">
+          {mapError} Puedes ingresar las coordenadas manualmente.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <label className="text-[11px] text-slate-600">
-          Latitud
+          Latitud GPS
           <input
             type="number"
             step="any"
@@ -152,12 +219,12 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
             max="90"
             value={value.latitude === 0 && value.longitude === 0 ? '' : value.latitude}
             onChange={(event) => updateCoordinate('latitude', event.target.value)}
-            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono"
+            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs"
             required
           />
         </label>
         <label className="text-[11px] text-slate-600">
-          Longitud
+          Longitud GPS
           <input
             type="number"
             step="any"
@@ -165,11 +232,12 @@ export const CoordinatePickerMap: React.FC<CoordinatePickerMapProps> = ({
             max="180"
             value={value.latitude === 0 && value.longitude === 0 ? '' : value.longitude}
             onChange={(event) => updateCoordinate('longitude', event.target.value)}
-            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono"
+            className="mt-1 w-full px-2 py-1.5 border border-slate-300 rounded-md font-mono text-xs"
             required
           />
         </label>
       </div>
+
       {coordinateError && <p className="text-[11px] text-rose-700">{coordinateError}</p>}
     </div>
   );

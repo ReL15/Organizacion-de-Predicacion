@@ -11,8 +11,9 @@ import { useAuth } from '../../context/AuthContext';
 import { canManagePreachingOperations } from '../../services/securityRules';
 import { Button } from '../common/Button';
 import { EmptyState } from '../common/EmptyState';
-import { ConfirmDialog } from '../common/ConfirmDialog';
 import { TerritoryModal } from './TerritoryModal';
+import { TerritoryCardModal } from './TerritoryCardModal';
+import { TerritoryProgressModal } from './TerritoryProgressModal';
 import { TerritoryMap } from '../map/TerritoryMap';
 import { pdfGenerator } from '../../services/pdfGenerator';
 import {
@@ -23,8 +24,9 @@ import {
   Layers,
   Edit2,
   CheckCircle2,
-  UserCheck,
-  RotateCcw,
+  Eye,
+  FileText,
+  MapPin,
 } from 'lucide-react';
 
 interface TerritoriesViewProps {
@@ -54,13 +56,18 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Territory | null>(null);
 
+  // Estados para las nuevas tarjetas y modal de registro de predicación
+  const [cardModalTerritory, setCardModalTerritory] = useState<Territory | null>(null);
+  const [progressModalTerritory, setProgressModalTerritory] = useState<Territory | null>(null);
+
   // Filtrado
   const filteredTerritories = useMemo(() => {
     return territories.filter((t) => {
       const matchesSearch =
         t.number.includes(search) ||
         (t.name && t.name.toLowerCase().includes(search.toLowerCase())) ||
-        (t.lastAssignedToName && t.lastAssignedToName.toLowerCase().includes(search.toLowerCase()));
+        (t.lastAssignedToName && t.lastAssignedToName.toLowerCase().includes(search.toLowerCase())) ||
+        (t.lastProgress && t.lastProgress.toLowerCase().includes(search.toLowerCase()));
 
       if (!matchesSearch) return false;
 
@@ -81,6 +88,44 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
     setModalOpen(true);
   };
 
+  const handleOpenCard = (t: Territory) => {
+    setCardModalTerritory(t);
+  };
+
+  const handleOpenProgress = (t: Territory) => {
+    setProgressModalTerritory(t);
+  };
+
+  const handleSaveProgress = async (
+    territory: Territory,
+    progressData: {
+      progress: string;
+      date: string;
+      publisherName: string;
+      notes?: string;
+      status?: TerritoryStatus;
+    }
+  ) => {
+    const updated: Territory = {
+      ...territory,
+      lastProgress: progressData.progress,
+      lastProgressDate: progressData.date,
+      lastProgressPublisher: progressData.publisherName,
+      status: progressData.status || territory.status,
+      observations: progressData.notes?.trim()
+        ? territory.observations
+          ? `${territory.observations} · ${progressData.notes.trim()}`
+          : progressData.notes.trim()
+        : territory.observations,
+      lastCompletedDate:
+        progressData.status === 'COMPLETADO'
+          ? progressData.date
+          : territory.lastCompletedDate,
+    };
+
+    await onSaveTerritory(updated);
+  };
+
   const handleQuickStatusChange = async (t: Territory, newStatus: TerritoryStatus) => {
     if (!canEdit) return;
     const updated: Territory = {
@@ -94,6 +139,11 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
     await onSaveTerritory(updated);
   };
 
+  const kingdomHallLocation =
+    congregation.latitude && congregation.longitude
+      ? { latitude: congregation.latitude, longitude: congregation.longitude }
+      : undefined;
+
   return (
     <div className="space-y-6">
       {/* Encabezado */}
@@ -104,7 +154,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
             Territorios de la Congregación
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Límites perimetrales en OpenStreetMap, asignaciones y avance de predicación
+            Límites perimetrales en Google Maps, tarjetas de territorio y registro de predicación
           </p>
         </div>
 
@@ -135,7 +185,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
           <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
           <input
             type="text"
-            placeholder="Buscar por número, nombre o asignado..."
+            placeholder="Buscar por número, nombre o dónde quedó..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
@@ -143,27 +193,28 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
-          {/* Segmented control para cambiar vista mapa/lista */}
-          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
+          <div className="flex items-center p-1 bg-slate-100 rounded-lg border border-slate-200">
             <button
               onClick={() => setViewMode('map')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
                 viewMode === 'map'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Mapa
+              <Map className="w-3.5 h-3.5" />
+              Mapa Google
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-md transition-all ${
                 viewMode === 'list'
-                  ? 'bg-white text-slate-900 shadow-xs'
+                  ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Lista
+              <Layers className="w-3.5 h-3.5" />
+              Tarjetas ({filteredTerritories.length})
             </button>
           </div>
 
@@ -191,6 +242,7 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
             publicPlaces={publicPlaces}
             selectedTerritoryId={selectedTerritoryId}
             onSelectTerritory={(id) => setSelectedTerritoryId(id)}
+            kingdomHallLocation={kingdomHallLocation}
             city={congregation.city}
           />
 
@@ -221,26 +273,36 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                         Asignado a: <b>{selected.lastAssignedToName}</b> (desde {selected.lastAssignedDate})
                       </span>
                     )}
+                    {selected.lastProgress && (
+                      <div className="text-xs text-blue-700 font-medium mt-1">
+                        📌 Dónde quedó: {selected.lastProgress}
+                      </div>
+                    )}
                   </div>
 
-                  {canEdit && (
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => handleOpenCard(selected)}>
+                      <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" />
+                      Ver tarjeta
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleOpenProgress(selected)}
+                      className="text-blue-700 border-blue-200 hover:bg-blue-50"
+                    >
+                      <FileText className="w-3.5 h-3.5 mr-1" />
+                      Registro de Predicación
+                    </Button>
+
+                    {canEdit && (
                       <Button size="sm" variant="outline" onClick={() => handleOpenEdit(selected)}>
                         <Edit2 className="w-3.5 h-3.5 mr-1" />
                         Editar
                       </Button>
-                      {selected.status !== 'COMPLETADO' && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleQuickStatusChange(selected, 'COMPLETADO')}
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                          Marcar Completado
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               );
             })()
@@ -248,20 +310,30 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
         </div>
       )}
 
-      {/* Vista de Lista / Cuadrícula */}
+      {/* Vista de Lista / Cuadrícula de Tarjetas de Territorio */}
       {viewMode === 'list' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTerritories.map((item) => (
             <div
               key={item.id}
-              className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between"
+              className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-colors"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-bold text-slate-900 font-mono">
                     Territorio #{item.number}
                   </span>
-                  <span className="text-[11px] font-medium text-slate-500">
+                  <span
+                    className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      item.status === 'DISPONIBLE'
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : item.status === 'ASIGNADO'
+                        ? 'bg-blue-50 text-blue-700'
+                        : item.status === 'EN_PROCESO'
+                        ? 'bg-amber-50 text-amber-700'
+                        : 'bg-purple-50 text-purple-700'
+                    }`}
+                  >
                     {item.status}
                   </span>
                 </div>
@@ -276,18 +348,37 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                   </p>
                 )}
 
-                <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1">
+                <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 space-y-1.5">
                   <div>
                     <span className="text-slate-400">Asignado a: </span>
                     <span className="font-medium text-slate-800">
                       {item.lastAssignedToName || 'Disponible'}
                     </span>
                   </div>
+
                   {item.lastAssignedDate && (
                     <div className="text-[11px] text-slate-400 font-mono tabular-nums">
-                      Fecha: {item.lastAssignedDate}
+                      Fecha de asignación: {item.lastAssignedDate}
                     </div>
                   )}
+
+                  {/* Dónde quedó el territorio */}
+                  {item.lastProgress ? (
+                    <div className="p-2 bg-blue-50/80 rounded-md border border-blue-100 text-[11px] text-blue-900 leading-snug">
+                      <span className="font-semibold block text-blue-950">📌 Dónde quedó:</span>
+                      <span>{item.lastProgress}</span>
+                      {item.lastProgressDate && (
+                        <span className="block text-[10px] text-blue-600 mt-0.5">
+                          {item.lastProgressDate} {item.lastProgressPublisher ? `· ${item.lastProgressPublisher}` : ''}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-[11px] text-slate-400 italic">
+                      Sin registro de dónde quedó aún
+                    </div>
+                  )}
+
                   {item.observations && (
                     <div className="text-[11px] text-slate-500 italic">
                       Nota: {item.observations}
@@ -296,41 +387,74 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
                 </div>
               </div>
 
-              {canEdit && (
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5">
-                    {item.status !== 'DISPONIBLE' && (
-                      <button
-                        onClick={() => handleQuickStatusChange(item, 'DISPONIBLE')}
-                        className="text-[11px] text-emerald-700 hover:underline font-medium"
-                      >
-                        Liberar
-                      </button>
-                    )}
-                    {item.status !== 'COMPLETADO' && (
-                      <button
-                        onClick={() => handleQuickStatusChange(item, 'COMPLETADO')}
-                        className="text-[11px] text-purple-700 hover:underline font-medium"
-                      >
-                        Completar
-                      </button>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={() => handleOpenEdit(item)}
-                    className="p-1.5 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100"
-                    title="Editar territorio"
+              {/* Botones de acción en la tarjeta: Ver tarjeta, Registro de Predicación y Acciones rápidas */}
+              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                <div className="flex items-center gap-1.5">
+                  {/* Botón 1: Ver tarjeta (Para que los publicadores puedan ver la tarjeta) */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenCard(item)}
+                    className="flex-1 text-xs py-1 h-8 justify-center font-medium"
+                    title="Ver la tarjeta digital del territorio"
                   >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                    <Eye className="w-3.5 h-3.5 mr-1 text-slate-600" />
+                    Ver tarjeta
+                  </Button>
+
+                  {/* Botón 2: Registro de Predicación (Donde se escribe dónde quedó y sirve para el programa) */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleOpenProgress(item)}
+                    className="flex-1 text-xs py-1 h-8 justify-center font-medium text-blue-700 border-blue-200 hover:bg-blue-50"
+                    title="Anotar dónde quedó el territorio para el programa de predicación"
+                  >
+                    <FileText className="w-3.5 h-3.5 mr-1" />
+                    Registro
+                  </Button>
+
+                  {canEdit && (
+                    <button
+                      onClick={() => handleOpenEdit(item)}
+                      className="p-1.5 text-slate-500 hover:text-slate-900 rounded hover:bg-slate-100 transition-colors"
+                      title="Editar límites y detalles del territorio"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
-              )}
+
+                {canEdit && (
+                  <div className="flex items-center justify-between text-[11px] pt-1 text-slate-500">
+                    <span className="text-[10px] text-slate-400">Estado rápido:</span>
+                    <div className="flex items-center gap-2">
+                      {item.status !== 'DISPONIBLE' && (
+                        <button
+                          onClick={() => handleQuickStatusChange(item, 'DISPONIBLE')}
+                          className="text-emerald-700 hover:underline font-medium"
+                        >
+                          Liberar
+                        </button>
+                      )}
+                      {item.status !== 'COMPLETADO' && (
+                        <button
+                          onClick={() => handleQuickStatusChange(item, 'COMPLETADO')}
+                          className="text-purple-700 hover:underline font-medium"
+                        >
+                          Completar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {/* Modal para editar límites y datos generales del territorio */}
       {modalOpen && (
         <TerritoryModal
           isOpen={modalOpen}
@@ -340,6 +464,30 @@ export const TerritoriesView: React.FC<TerritoriesViewProps> = ({
           publishers={publishers}
           allTerritories={territories}
           city={congregation.city}
+        />
+      )}
+
+      {/* Modal 1: Ver tarjeta del territorio (Para publicadores) */}
+      {cardModalTerritory && (
+        <TerritoryCardModal
+          isOpen={Boolean(cardModalTerritory)}
+          onClose={() => setCardModalTerritory(null)}
+          territory={cardModalTerritory}
+          congregation={congregation}
+          places={places}
+          onOpenProgressModal={(t) => setProgressModalTerritory(t)}
+        />
+      )}
+
+      {/* Modal 2: Registro de Predicación (Anotar dónde quedó el territorio) */}
+      {progressModalTerritory && (
+        <TerritoryProgressModal
+          isOpen={Boolean(progressModalTerritory)}
+          onClose={() => setProgressModalTerritory(null)}
+          territory={progressModalTerritory}
+          currentUser={currentUser}
+          publishers={publishers}
+          onSaveProgress={handleSaveProgress}
         />
       )}
     </div>

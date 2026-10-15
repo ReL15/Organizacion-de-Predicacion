@@ -8,7 +8,7 @@ import {
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { detectWeeklyConflicts } from '../../services/securityRules';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, MapPin } from 'lucide-react';
 
 interface AssignmentModalProps {
   isOpen: boolean;
@@ -244,6 +244,37 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
               </option>
             ))}
           </select>
+
+          {(() => {
+            const currentTerr = territories.find((t) => t.id === territoryId);
+            if (!currentTerr?.lastProgress) return null;
+            return (
+              <div className="mt-2 p-2.5 bg-blue-50/90 border border-blue-200 rounded-lg text-xs text-blue-900 flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <span className="font-semibold block text-blue-950">
+                    📌 Dónde quedó este territorio:
+                  </span>
+                  <span className="block mt-0.5">{currentTerr.lastProgress}</span>
+                  {currentTerr.lastProgressDate && (
+                    <span className="block text-[11px] text-blue-700 mt-0.5">
+                      Registrado el {currentTerr.lastProgressDate} {currentTerr.lastProgressPublisher ? `por ${currentTerr.lastProgressPublisher}` : ''}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const noteToAdd = `Continuar en: ${currentTerr.lastProgress}`;
+                      setNotes((prev) => (prev ? `${prev} · ${noteToAdd}` : noteToAdd));
+                    }}
+                    className="mt-1 text-[11px] font-semibold text-blue-700 hover:text-blue-900 underline block"
+                  >
+                    + Copiar a las notas de la reunión
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         <div>

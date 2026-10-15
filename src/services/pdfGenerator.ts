@@ -143,7 +143,7 @@ export const pdfGenerator = {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184);
       doc.text(
-        `Organizador de la Predicación Congregacional · Página ${i} de ${totalPages}`,
+        `Programa de Predicación · Página ${i} de ${totalPages}`,
         pageWidth / 2,
         288,
         { align: 'center' }
@@ -313,8 +313,30 @@ export const pdfGenerator = {
       doc.text(t.lastAssignedToName || '—', margin + 120, y + 6);
       doc.text(t.lastAssignedDate || t.lastCompletedDate || '—', margin + 160, y + 6);
 
-      y += 10;
+      if (t.lastProgress) {
+        doc.setFont('helvetica', 'italic');
+        doc.setFontSize(7.5);
+        doc.setTextColor(30, 64, 175);
+        doc.text(`Quedó: ${t.lastProgress.substring(0, 65)}`, margin + 18, y + 10);
+        y += 14;
+      } else {
+        y += 10;
+      }
     });
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(
+        `Programa de Predicación · Página ${i} de ${totalPages}`,
+        pageWidth / 2,
+        288,
+        { align: 'center' }
+      );
+    }
 
     doc.save(`Territorios_${congregation.name.replace(/\s+/g, '_')}.pdf`);
   },

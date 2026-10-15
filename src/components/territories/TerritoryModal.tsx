@@ -97,6 +97,9 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
         status === 'COMPLETADO'
           ? new Date().toISOString().split('T')[0]
           : initialData?.lastCompletedDate,
+      lastProgress: initialData?.lastProgress,
+      lastProgressDate: initialData?.lastProgressDate,
+      lastProgressPublisher: initialData?.lastProgressPublisher,
       createdAt: initialData?.createdAt || new Date().toISOString(),
     };
 
@@ -250,11 +253,14 @@ export const TerritoryModal: React.FC<TerritoryModalProps> = ({
 
           <div className="rounded-xl overflow-hidden border border-slate-200">
             <TerritoryMap
-              territories={[]}
+              territories={initialData ? [initialData] : []}
+              selectedTerritoryId={initialData?.id}
               isEditingPolygon={isDrawingPolygon}
               editingPolygonPoints={polygon}
               onPolygonChange={setPolygon}
               city={city}
+              heightClassName="h-[360px]"
+              autoFitBounds={true}
             />
           </div>
         </div>

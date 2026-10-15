@@ -280,6 +280,34 @@ export const apiService = {
   },
 
   /**
+   * Registra el avance de predicación de un territorio (dónde quedó)
+   */
+  async recordTerritoryProgress(
+    territory: Territory,
+    progressData: {
+      progress: string;
+      date: string;
+      publisherName: string;
+      notes?: string;
+      status?: Territory['status'];
+    },
+    currentUser: UserProfile
+  ): Promise<Territory> {
+    const updatedTerritory: Territory = {
+      ...territory,
+      lastProgress: progressData.progress.trim(),
+      lastProgressDate: progressData.date,
+      lastProgressPublisher: progressData.publisherName.trim(),
+      status: progressData.status || territory.status,
+      observations: progressData.notes?.trim()
+        ? (territory.observations ? `${territory.observations} · ${progressData.notes.trim()}` : progressData.notes.trim())
+        : territory.observations,
+    };
+
+    return this.saveTerritory(updatedTerritory, currentUser);
+  },
+
+  /**
    * Guarda o actualiza un lugar de salida
    */
   async savePreachingPlace(

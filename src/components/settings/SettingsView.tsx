@@ -12,7 +12,12 @@ import {
   History,
   CheckCircle,
   Lock,
+  MapPin,
+  Building2,
+  ExternalLink,
+  Navigation,
 } from 'lucide-react';
+import { CoordinatePickerMap } from '../map/CoordinatePickerMap';
 
 interface SettingsViewProps {
   congregation: Congregation;
@@ -31,6 +36,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [name, setName] = useState(congregation.name);
   const [circuit, setCircuit] = useState(congregation.circuit || '');
   const [city, setCity] = useState(congregation.city || '');
+  const [address, setAddress] = useState(congregation.address || '');
+  const [latitude, setLatitude] = useState<number | undefined>(congregation.latitude);
+  const [longitude, setLongitude] = useState<number | undefined>(congregation.longitude);
+  const [gpsMessage, setGpsMessage] = useState('');
   const [logoUrl, setLogoUrl] = useState(congregation.logoUrl || '');
   const [timezone, setTimezone] = useState(congregation.timezone || 'America/El_Salvador');
   const [isSaving, setIsSaving] = useState(false);
@@ -49,6 +58,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setName(congregation.name);
     setCircuit(congregation.circuit || '');
     setCity(congregation.city || '');
+    setAddress(congregation.address || '');
+    setLatitude(congregation.latitude);
+    setLongitude(congregation.longitude);
     setLogoUrl(congregation.logoUrl || '');
     setTimezone(congregation.timezone || 'America/El_Salvador');
   }, [congregation]);
@@ -64,6 +76,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     );
   }
 
+  const handleGetCurrentGps = () => {
+    if (!navigator.geolocation) {
+      alert('Tu navegador no soporta geolocalización GPS.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(Number(pos.coords.latitude.toFixed(6)));
+        setLongitude(Number(pos.coords.longitude.toFixed(6)));
+        setGpsMessage('Ubicación GPS capturada con éxito desde tu dispositivo.');
+        setTimeout(() => setGpsMessage(''), 4000);
+      },
+      (err) => {
+        alert(`No se pudo obtener el GPS: ${err.message}`);
+      },
+      { enableHighAccuracy: true }
+    );
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
@@ -74,10 +105,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         name: name.trim(),
         circuit: circuit.trim() || undefined,
         city: city.trim(),
+        address: address.trim() || undefined,
+        latitude: latitude !== undefined && !isNaN(latitude) ? latitude : undefined,
+        longitude: longitude !== undefined && !isNaN(longitude) ? longitude : undefined,
         logoUrl,
         timezone,
       });
-      setSuccessMessage('Ajustes de la congregación guardados correctamente.');
+      setSuccessMessage('Ajustes de la congregación y Salón del Reino guardados correctamente.');
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err: any) {
       alert(`Error guardando ajustes: ${err.message}`);
@@ -315,18 +349,92 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-slate-800 mb-1 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-slate-600" />
+                Dirección física del Salón del Reino
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Ej: Final 4.ª Calle Poniente #24, Col. Utila, Santa Tecla"
+                className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
+              />
+              <p className="mt-1 text-[11px] text-slate-500">
+                Dirección física oficial del Salón del Reino que sirve de referencia para la congregación.
+              </p>
+            </div>
+
+            {/* Ubicación GPS del Salón del Reino */}
+            <div className="space-y-2 p-3 bg-slate-50/80 rounded-xl border border-slate-200">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-xs font-semibold text-slate-900">
+                    Ubicación GPS del Salón del Reino
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGetCurrentGps}
+                    className="text-[11px] py-1 h-7"
+                    title="Obtener coordenadas GPS del dispositivo actual"
+                  >
+                    <Navigation className="w-3 h-3 mr-1 text-blue-600" />
+                    GPS de mi dispositivo
+                  </Button>
+
+                  {latitude && longitude && (
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center text-[11px] text-blue-700 hover:underline font-medium"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-0.5" />
+                      Google Maps
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {gpsMessage && (
+                <p className="text-[11px] text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200">
+                  {gpsMessage}
+                </p>
+              )}
+
+              <CoordinatePickerMap
+                value={{
+                  latitude: latitude || 0,
+                  longitude: longitude || 0,
+                }}
+                onChange={(pt) => {
+                  setLatitude(pt.latitude);
+                  setLongitude(pt.longitude);
+                }}
+                label="Haz clic en el mapa de Google Maps para colocar la ubicación exacta del Salón del Reino"
+                city={city}
+              />
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-slate-700 mb-1">
-                Ciudad de la Congregación
+                Ciudad o Municipio
               </label>
               <input
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="Ej: Santa Tecla, El Salvador"
+                placeholder="Ej: Santa Tecla, La Libertad"
                 className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-900"
               />
               <p className="mt-1 text-[11px] text-slate-500">
-                OpenStreetMap buscará esta ciudad para centrar inicialmente los mapas.
+                Municipio de referencia de la congregación.
               </p>
             </div>
 

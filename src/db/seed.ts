@@ -11,7 +11,15 @@ export async function bootstrapDatabase() {
   await db.execute(sql`
     ALTER TABLE congregations
     ADD COLUMN IF NOT EXISTS city text,
-    ADD COLUMN IF NOT EXISTS logo_url text
+    ADD COLUMN IF NOT EXISTS logo_url text,
+    ADD COLUMN IF NOT EXISTS address text,
+    ADD COLUMN IF NOT EXISTS latitude double precision,
+    ADD COLUMN IF NOT EXISTS longitude double precision;
+
+    ALTER TABLE territories
+    ADD COLUMN IF NOT EXISTS last_progress text,
+    ADD COLUMN IF NOT EXISTS last_progress_date text,
+    ADD COLUMN IF NOT EXISTS last_progress_publisher text;
   `);
 
   const congregations = await getCongregationsList();

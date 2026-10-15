@@ -221,7 +221,25 @@ export const WeeklyProgramView: React.FC<WeeklyProgramViewProps> = ({
 
                     <td className="py-3.5 px-4 text-slate-600">
                       {item.territoryNumber ? (
-                        <span>Territorio #{item.territoryNumber}</span>
+                        <div>
+                          <span className="font-medium text-slate-800">
+                            Territorio #{item.territoryNumber}
+                          </span>
+                          {(() => {
+                            const terr = territories.find(
+                              (t) => t.id === item.territoryId || t.number === item.territoryNumber
+                            );
+                            if (!terr?.lastProgress) return null;
+                            return (
+                              <div
+                                className="text-[11px] text-blue-700 font-medium truncate max-w-[220px]"
+                                title={`Dónde quedó: ${terr.lastProgress}${terr.lastProgressDate ? ` (${terr.lastProgressDate})` : ''}`}
+                              >
+                                📌 Quedó: {terr.lastProgress}
+                              </div>
+                            );
+                          })()}
+                        </div>
                       ) : (
                         <span className="text-slate-400 italic">Por asignar</span>
                       )}

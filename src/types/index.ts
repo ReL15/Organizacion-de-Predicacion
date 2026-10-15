@@ -25,6 +25,9 @@ export interface Congregation {
   name: string;
   circuit?: string;
   city?: string;
+  address?: string; // Dirección física del Salón del Reino
+  latitude?: number; // Latitud GPS del Salón del Reino
+  longitude?: number; // Longitud GPS del Salón del Reino
   logoUrl?: string;
   timezone: string; // ej: 'America/El_Salvador'
   createdAt: string;
@@ -75,6 +78,9 @@ export interface Territory {
   lastAssignedToId?: string;
   lastAssignedToName?: string;
   lastCompletedDate?: string;
+  lastProgress?: string; // Dónde quedó el territorio (calle, manzana, casa, etc.)
+  lastProgressDate?: string; // Fecha del último avance registrado
+  lastProgressPublisher?: string; // Publicador / Conductor que reportó dónde quedó
   createdAt: string;
 }
 

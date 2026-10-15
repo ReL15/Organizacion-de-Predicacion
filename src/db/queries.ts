@@ -51,6 +51,9 @@ export async function getCongregationsList(): Promise<Congregation[]> {
       name: r.name,
       circuit: r.circuit || undefined,
       city: r.city || undefined,
+      address: r.address || undefined,
+      latitude: r.latitude ?? undefined,
+      longitude: r.longitude ?? undefined,
       logoUrl: r.logoUrl || undefined,
       timezone: r.timezone,
       createdAt: toIsoDate(r.createdAt),
@@ -72,6 +75,9 @@ export async function getCongregationById(id: string): Promise<Congregation | nu
       name: r.name,
       circuit: r.circuit || undefined,
       city: r.city || undefined,
+      address: r.address || undefined,
+      latitude: r.latitude ?? undefined,
+      longitude: r.longitude ?? undefined,
       logoUrl: r.logoUrl || undefined,
       timezone: r.timezone,
       createdAt: toIsoDate(r.createdAt),
@@ -88,6 +94,9 @@ export async function createCongregationRecord(data: {
   name: string;
   circuit?: string;
   city?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
   logoUrl?: string;
   timezone?: string;
   createdBy?: string;
@@ -100,6 +109,9 @@ export async function createCongregationRecord(data: {
         name: data.name,
         circuit: data.circuit,
         city: data.city,
+        address: data.address,
+        latitude: data.latitude,
+        longitude: data.longitude,
         logoUrl: data.logoUrl,
         timezone: data.timezone || 'America/El_Salvador',
         createdBy: data.createdBy,
@@ -111,6 +123,9 @@ export async function createCongregationRecord(data: {
       name: inserted.name,
       circuit: inserted.circuit || undefined,
       city: inserted.city || undefined,
+      address: inserted.address || undefined,
+      latitude: inserted.latitude ?? undefined,
+      longitude: inserted.longitude ?? undefined,
       logoUrl: inserted.logoUrl || undefined,
       timezone: inserted.timezone,
       createdAt: toIsoDate(inserted.createdAt),
@@ -124,13 +139,25 @@ export async function createCongregationRecord(data: {
 
 export async function updateCongregationRecord(
   id: string,
-  data: Partial<{ name: string; circuit: string; city: string; logoUrl: string; timezone: string }>
+  data: Partial<{
+    name: string;
+    circuit: string;
+    city: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    logoUrl: string;
+    timezone: string;
+  }>
 ): Promise<Congregation> {
   try {
     const payload: Record<string, any> = {};
     if (data.name !== undefined) payload.name = data.name;
     if (data.circuit !== undefined) payload.circuit = data.circuit;
     if (data.city !== undefined) payload.city = data.city;
+    if (data.address !== undefined) payload.address = data.address;
+    if (data.latitude !== undefined) payload.latitude = data.latitude;
+    if (data.longitude !== undefined) payload.longitude = data.longitude;
     if (data.logoUrl !== undefined) payload.logoUrl = data.logoUrl;
     if (data.timezone !== undefined) payload.timezone = data.timezone;
 
@@ -145,6 +172,9 @@ export async function updateCongregationRecord(
       name: updated.name,
       circuit: updated.circuit || undefined,
       city: updated.city || undefined,
+      address: updated.address || undefined,
+      latitude: updated.latitude ?? undefined,
+      longitude: updated.longitude ?? undefined,
       logoUrl: updated.logoUrl || undefined,
       timezone: updated.timezone,
       createdAt: toIsoDate(updated.createdAt),
@@ -543,6 +573,9 @@ export async function getTerritoriesList(congregationId: string): Promise<Territ
       lastAssignedToId: r.lastAssignedToId || undefined,
       lastAssignedToName: r.lastAssignedToName || undefined,
       lastCompletedDate: r.lastCompletedDate || undefined,
+      lastProgress: r.lastProgress || undefined,
+      lastProgressDate: r.lastProgressDate || undefined,
+      lastProgressPublisher: r.lastProgressPublisher || undefined,
       createdAt: toIsoDate(r.createdAt),
     }));
   } catch (error) {
@@ -569,6 +602,9 @@ export async function createTerritoryRecord(data: Territory): Promise<Territory>
         lastAssignedToId: data.lastAssignedToId,
         lastAssignedToName: data.lastAssignedToName,
         lastCompletedDate: data.lastCompletedDate,
+        lastProgress: data.lastProgress,
+        lastProgressDate: data.lastProgressDate,
+        lastProgressPublisher: data.lastProgressPublisher,
       })
       .returning();
 
@@ -586,6 +622,9 @@ export async function createTerritoryRecord(data: Territory): Promise<Territory>
       lastAssignedToId: inserted.lastAssignedToId || undefined,
       lastAssignedToName: inserted.lastAssignedToName || undefined,
       lastCompletedDate: inserted.lastCompletedDate || undefined,
+      lastProgress: inserted.lastProgress || undefined,
+      lastProgressDate: inserted.lastProgressDate || undefined,
+      lastProgressPublisher: inserted.lastProgressPublisher || undefined,
       createdAt: toIsoDate(inserted.createdAt),
     };
   } catch (error) {
@@ -596,21 +635,25 @@ export async function createTerritoryRecord(data: Territory): Promise<Territory>
 
 export async function updateTerritoryRecord(id: string, data: Partial<Territory>): Promise<Territory> {
   try {
+    const updatePayload: Record<string, any> = {};
+    if (data.number !== undefined) updatePayload.number = data.number;
+    if (data.name !== undefined) updatePayload.name = data.name;
+    if (data.description !== undefined) updatePayload.description = data.description;
+    if (data.status !== undefined) updatePayload.status = data.status;
+    if (data.polygon !== undefined) updatePayload.polygon = data.polygon;
+    if (data.active !== undefined) updatePayload.active = data.active;
+    if (data.observations !== undefined) updatePayload.observations = data.observations;
+    if (data.lastAssignedDate !== undefined) updatePayload.lastAssignedDate = data.lastAssignedDate;
+    if (data.lastAssignedToId !== undefined) updatePayload.lastAssignedToId = data.lastAssignedToId;
+    if (data.lastAssignedToName !== undefined) updatePayload.lastAssignedToName = data.lastAssignedToName;
+    if (data.lastCompletedDate !== undefined) updatePayload.lastCompletedDate = data.lastCompletedDate;
+    if (data.lastProgress !== undefined) updatePayload.lastProgress = data.lastProgress;
+    if (data.lastProgressDate !== undefined) updatePayload.lastProgressDate = data.lastProgressDate;
+    if (data.lastProgressPublisher !== undefined) updatePayload.lastProgressPublisher = data.lastProgressPublisher;
+
     const [updated] = await db
       .update(territories)
-      .set({
-        number: data.number,
-        name: data.name,
-        description: data.description,
-        status: data.status,
-        polygon: data.polygon,
-        active: data.active,
-        observations: data.observations,
-        lastAssignedDate: data.lastAssignedDate,
-        lastAssignedToId: data.lastAssignedToId,
-        lastAssignedToName: data.lastAssignedToName,
-        lastCompletedDate: data.lastCompletedDate,
-      })
+      .set(updatePayload)
       .where(eq(territories.id, id))
       .returning();
 
@@ -628,6 +671,9 @@ export async function updateTerritoryRecord(id: string, data: Partial<Territory>
       lastAssignedToId: updated.lastAssignedToId || undefined,
       lastAssignedToName: updated.lastAssignedToName || undefined,
       lastCompletedDate: updated.lastCompletedDate || undefined,
+      lastProgress: updated.lastProgress || undefined,
+      lastProgressDate: updated.lastProgressDate || undefined,
+      lastProgressPublisher: updated.lastProgressPublisher || undefined,
       createdAt: toIsoDate(updated.createdAt),
     };
   } catch (error) {

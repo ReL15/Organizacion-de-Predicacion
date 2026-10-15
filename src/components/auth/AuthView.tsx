@@ -110,7 +110,7 @@ export const AuthView: React.FC<AuthViewProps> = ({ isModal = false, isOpen = tr
         </div>
         <h1 className="text-xl font-bold text-slate-900 tracking-tight">
           {mode === 'login'
-            ? 'Organizador de la Predicación'
+            ? 'Programa de Predicación'
             : mode === 'register'
             ? 'Crear Cuenta'
             : 'Recuperar Contraseña'}
