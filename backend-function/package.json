@@ -1,0 +1,13 @@
+{
+  "name": "organizador-predicacion-backend-function",
+  "version": "1.0.0",
+  "description": "Appwrite Serverless Function para el Organizador de la Predicación Congregacional",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "node-appwrite": "^14.1.0"
+  }
+}

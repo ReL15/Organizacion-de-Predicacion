@@ -1,0 +1,6 @@
+{
+  "name": "Organizador de la Predicación Congregacional",
+  "description": "Plataforma integral para planificar y administrar la actividad de predicación congregacional, territorios, salidas, turnos públicos y publicadores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
